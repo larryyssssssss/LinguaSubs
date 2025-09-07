@@ -1,0 +1,28 @@
+{
+  "name": "linguasubs",
+  "version": "1.0.0",
+  "description": "LinguaSubs 是一个基于影视、纪录片等字幕内容的个性化英语词汇学习Web应用。它旨在通过用户感兴趣的媒介（电影、剧集）来驱动学习，并结合艾宾浩斯遗忘曲线的记忆算法，帮助用户在沉浸式语境中高效、持久地掌握英语词汇。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/larryyssssssss/LinguaSubs.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/larryyssssssss/LinguaSubs/issues"
+  },
+  "homepage": "https://github.com/larryyssssssss/LinguaSubs#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.2",
+    "live-server": "^1.2.2"
+  }
+}
