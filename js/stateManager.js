@@ -1,9 +1,12 @@
+import { saveWordProficiency } from './dataService.js';
+import { wordDetailsCache } from './api.js';
+
 const appState = {
     currentView: 'home', // 'home', 'study'
     currentMovie: null, // { id, title, ... }
     allWords: [],
     sentences: [],
-    wordDetailsCache: {}, // 用于缓存API结果
+    wordDetailsCache: wordDetailsCache, // 使用全局缓存实例
     currentWord: null, // 当前正在学习的单词
     currentWordDetails: null, // 当前单词的详细信息
     progressData: {}, // 学习进度数据
@@ -22,33 +25,38 @@ const appState = {
     showSettings: false // 是否显示设置面板
 };
 
-const elements = {
-    homeView: document.getElementById('home-view'),
-    studyView: document.getElementById('study-view'),
-    wordElement: document.getElementById('word'),
-    phoneticElement: document.getElementById('phonetic'),
-    pronunciationBtn: document.getElementById('pronunciation-btn'),
-    definitionElement: document.getElementById('definition'),
-    exampleSentenceElement: document.getElementById('example-sentence'),
-    forgotBtn: document.getElementById('forgot-btn'),
-    reviewBtn: document.getElementById('review-btn'),
-    knownBtn: document.getElementById('known-btn'),
-    movieListContainer: document.getElementById('movie-list'),
-    wordListContainer: document.getElementById('word-list-container'),
-    browseModeBtn: document.getElementById('browse-mode-btn'),
-    reviewModeBtn: document.getElementById('review-mode-btn'),
-    movieTitle: document.getElementById('movie-title'),
-    settingsBtn: document.getElementById('settings-btn'),
-    settingsPanel: document.getElementById('settings-panel'),
-    closeSettingsBtn: document.getElementById('close-settings-btn'),
-    saveSettingsBtn: document.getElementById('save-settings-btn'),
-    resetSettingsBtn: document.getElementById('reset-settings-btn'),
-    minFrequencyInput: document.getElementById('min-frequency'),
-    beginnerLabelInput: document.getElementById('beginner-label'),
-    intermediateLabelInput: document.getElementById('intermediate-label'),
-    advancedLabelInput: document.getElementById('advanced-label'),
-    dictionaryAPISelect: document.getElementById('dictionary-api')
-};
+// 确保在DOM加载完成后再获取元素
+let elements = {};
+
+function initializeElements() {
+    elements = {
+        homeView: document.getElementById('home-view'),
+        studyView: document.getElementById('study-view'),
+        wordElement: document.getElementById('word'),
+        phoneticElement: document.getElementById('phonetic'),
+        pronunciationBtn: document.getElementById('pronunciation-btn'),
+        definitionElement: document.getElementById('definition'),
+        exampleSentenceElement: document.getElementById('example-sentence'),
+        forgotBtn: document.getElementById('forgot-btn'),
+        reviewBtn: document.getElementById('review-btn'),
+        knownBtn: document.getElementById('known-btn'),
+        movieListContainer: document.getElementById('movie-list'),
+        wordListContainer: document.getElementById('word-list-container'),
+        browseModeBtn: document.getElementById('browse-mode-btn'),
+        reviewModeBtn: document.getElementById('review-mode-btn'),
+        movieTitle: document.getElementById('movie-title'),
+        settingsBtn: document.getElementById('settings-btn'),
+        settingsPanel: document.getElementById('settings-panel'),
+        closeSettingsBtn: document.getElementById('close-settings-btn'),
+        saveSettingsBtn: document.getElementById('save-settings-btn'),
+        resetSettingsBtn: document.getElementById('reset-settings-btn'),
+        minFrequencyInput: document.getElementById('min-frequency'),
+        beginnerLabelInput: document.getElementById('beginner-label'),
+        intermediateLabelInput: document.getElementById('intermediate-label'),
+        advancedLabelInput: document.getElementById('advanced-label'),
+        dictionaryAPISelect: document.getElementById('dictionary-api')
+    };
+}
 
 function updateUI() {
     // 根据 appState.currentView 控制视图显示/隐藏
@@ -372,22 +380,9 @@ async function selectWord(word) {
 function setWordProficiency(word, proficiency) {
     appState.wordProficiency[word] = proficiency;
     
-    // 保存到LocalStorage
+    // 保存到Supabase
     if (appState.currentMovie) {
-        if (appState.currentMovie.isUserMedia) {
-            // 保存用户上传的媒体数据
-            const userMediaKey = `linguasubs_user_${appState.currentMovie.id}`;
-            const userData = JSON.parse(localStorage.getItem(userMediaKey)) || {};
-            userData.wordProficiency = appState.wordProficiency;
-            userData.progressData = appState.progressData;
-            localStorage.setItem(userMediaKey, JSON.stringify(userData));
-        } else {
-            // 保存示例电影数据
-            const savedData = localStorage.getItem(`linguasubs_${appState.currentMovie.id}`);
-            const movieData = savedData ? JSON.parse(savedData) : {};
-            movieData.wordProficiency = appState.wordProficiency;
-            localStorage.setItem(`linguasubs_${appState.currentMovie.id}`, JSON.stringify(movieData));
-        }
+        saveWordProficiency(appState.currentMovie.id, word, proficiency);
     }
     
     // 更新单词项的熟练度属性
@@ -480,3 +475,6 @@ function setState(newState) {
     Object.assign(appState, newState);
     updateUI();
 }
+
+// 导出appState、setState函数、elements对象、selectWord函数、setWordProficiency函数、renderWordList函数、renderWordDetails函数、toggleStudyMode函数、toggleSettings函数、saveSettings函数和resetSettings函数
+export { appState, setState, elements, initializeElements, selectWord, setWordProficiency, renderWordList, renderWordDetails, toggleStudyMode, toggleSettings, saveSettings, resetSettings };

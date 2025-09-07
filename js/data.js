@@ -26,3 +26,9 @@ const movies = [
     //     srtPath: 'data/toy-story.srt'
     // }
 ];
+
+// 确保导出movies数组
+window.movies = movies;
+
+// 同时使用ES6模块导出
+export { movies };

@@ -1,5 +1,21 @@
+// 在文件顶部添加导入语句
+import { getMovies, getMovieById, getUserProgress, saveUserProgress, saveWordProficiency, getMovieStats } from './dataService.js';
+import { initRouter, navigateTo } from './router.js';
+import { prefetchWordDetails } from './api.js';
+import { showGlobalLoading, hideGlobalLoading } from './loadingManager.js';
+import { setState, elements, initializeElements, toggleStudyMode, toggleSettings, saveSettings, resetSettings, selectWord, setWordProficiency, renderWordList, renderWordDetails } from './stateManager.js';
+import { movies } from './data.js'; // 导入本地电影数据
+
 // DOM加载完成后执行
 document.addEventListener('DOMContentLoaded', function() {
+    // 初始化元素引用
+    initializeElements();
+    
+    // 将本地电影数据添加到window对象中，确保其他地方可以访问
+    window.movies = movies;
+    
+    // 初始化路由
+    initRouter();
     // 初始化电影列表
     renderMovieList();
     
@@ -14,9 +30,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (elements.reviewBtn) elements.reviewBtn.addEventListener('click', () => handleFeedback('Good'));
     if (elements.knownBtn) elements.knownBtn.addEventListener('click', () => handleFeedback('Easy'));
     
+    // 为按钮添加键盘支持
+    if (elements.forgotBtn) elements.forgotBtn.addEventListener('keydown', handleButtonKeyDown);
+    if (elements.reviewBtn) elements.reviewBtn.addEventListener('keydown', handleButtonKeyDown);
+    if (elements.knownBtn) elements.knownBtn.addEventListener('keydown', handleButtonKeyDown);
+    
     // 绑定模式切换按钮事件
     if (elements.browseModeBtn) elements.browseModeBtn.addEventListener('click', () => toggleStudyMode('browse'));
     if (elements.reviewModeBtn) elements.reviewModeBtn.addEventListener('click', () => toggleStudyMode('review'));
+    
+    // 为模式切换按钮添加键盘支持
+    if (elements.browseModeBtn) elements.browseModeBtn.addEventListener('keydown', handleButtonKeyDown);
+    if (elements.reviewModeBtn) elements.reviewModeBtn.addEventListener('keydown', handleButtonKeyDown);
     
     // 绑定设置面板事件
     if (elements.settingsBtn) elements.settingsBtn.addEventListener('click', () => toggleSettings(true));
@@ -24,10 +49,17 @@ document.addEventListener('DOMContentLoaded', function() {
     if (elements.saveSettingsBtn) elements.saveSettingsBtn.addEventListener('click', saveSettings);
     if (elements.resetSettingsBtn) elements.resetSettingsBtn.addEventListener('click', resetSettings);
     
+    // 为设置面板按钮添加键盘支持
+    if (elements.settingsBtn) elements.settingsBtn.addEventListener('keydown', handleButtonKeyDown);
+    if (elements.closeSettingsBtn) elements.closeSettingsBtn.addEventListener('keydown', handleButtonKeyDown);
+    if (elements.saveSettingsBtn) elements.saveSettingsBtn.addEventListener('keydown', handleButtonKeyDown);
+    if (elements.resetSettingsBtn) elements.resetSettingsBtn.addEventListener('keydown', handleButtonKeyDown);
+    
     // 绑定导出事件
     const exportBtn = document.getElementById('export-btn');
     if (exportBtn) {
         exportBtn.addEventListener('click', exportWordList);
+        exportBtn.addEventListener('keydown', handleButtonKeyDown);
     }
     
     // 绑定返回按钮事件
@@ -43,12 +75,65 @@ document.addEventListener('DOMContentLoaded', function() {
                 wordDetailPanel.classList.add('mobile-hidden');
             }
         });
+        backBtn.addEventListener('keydown', handleButtonKeyDown);
+    }
+    
+    // 绑定返回首页按钮事件
+    const backToHomeBtn = document.getElementById('back-to-home');
+    if (backToHomeBtn) {
+        backToHomeBtn.addEventListener('click', () => {
+            // 导航到首页
+            navigateTo('/');
+        });
+        backToHomeBtn.addEventListener('keydown', handleButtonKeyDown);
     }
     
     // 绑定上传事件
     const uploadInput = document.getElementById('subtitle-upload');
     if (uploadInput) {
         uploadInput.addEventListener('change', handleSubtitleUpload);
+    }
+    
+    // 绑定上传模态框事件
+    const openUploadModalBtn = document.getElementById('open-upload-modal');
+    const closeUploadModalBtn = document.getElementById('close-upload-modal');
+    const cancelUploadBtn = document.getElementById('cancel-upload');
+    const submitUploadBtn = document.getElementById('submit-upload');
+    const uploadModal = document.getElementById('upload-modal');
+    
+    if (openUploadModalBtn) {
+        openUploadModalBtn.addEventListener('click', () => {
+            if (uploadModal) uploadModal.classList.remove('hidden');
+        });
+        openUploadModalBtn.addEventListener('keydown', handleButtonKeyDown);
+    }
+    
+    if (closeUploadModalBtn) {
+        closeUploadModalBtn.addEventListener('click', () => {
+            if (uploadModal) uploadModal.classList.add('hidden');
+        });
+        closeUploadModalBtn.addEventListener('keydown', handleButtonKeyDown);
+    }
+    
+    if (cancelUploadBtn) {
+        cancelUploadBtn.addEventListener('click', () => {
+            if (uploadModal) uploadModal.classList.add('hidden');
+        });
+        cancelUploadBtn.addEventListener('keydown', handleButtonKeyDown);
+    }
+    
+    if (submitUploadBtn) {
+        submitUploadBtn.addEventListener('click', handleUploadSubmit);
+        submitUploadBtn.addEventListener('keydown', handleButtonKeyDown);
+    }
+    
+    // 点击遮罩层关闭模态框
+    if (uploadModal) {
+        uploadModal.addEventListener('click', (e) => {
+            if (e.target === uploadModal) {
+                uploadModal.classList.add('hidden');
+            }
+        });
     }
     
     // 添加键盘快捷键支持
@@ -63,12 +148,14 @@ document.addEventListener('DOMContentLoaded', function() {
         helpBtn.addEventListener('click', () => {
             if (shortcutHelp) shortcutHelp.classList.remove('hidden');
         });
+        helpBtn.addEventListener('keydown', handleButtonKeyDown);
     }
     
     if (closeHelpBtn) {
         closeHelpBtn.addEventListener('click', () => {
             if (shortcutHelp) shortcutHelp.classList.add('hidden');
         });
+        closeHelpBtn.addEventListener('keydown', handleButtonKeyDown);
     }
     
     // 点击遮罩层关闭帮助面板
@@ -79,7 +166,39 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // 确保所有可交互元素都有足够的触控目标大小
+    ensureTouchTargets();
 });
+
+// 处理按钮键盘事件
+function handleButtonKeyDown(event) {
+    // 空格键和回车键触发点击
+    if (event.key === ' ' || event.key === 'Enter') {
+        event.preventDefault();
+        event.target.click();
+    }
+}
+
+// 确保触控目标大小
+function ensureTouchTargets() {
+    // 为所有按钮和链接添加最小尺寸
+    const buttons = document.querySelectorAll('button, a[role="button"]');
+    buttons.forEach(button => {
+        // 确保按钮至少有44x44px的触控目标
+        const computedStyle = window.getComputedStyle(button);
+        const width = parseFloat(computedStyle.width) || button.offsetWidth;
+        const height = parseFloat(computedStyle.height) || button.offsetHeight;
+        
+        if (width < 44) {
+            button.style.minWidth = '44px';
+        }
+        
+        if (height < 44) {
+            button.style.minHeight = '44px';
+        }
+    });
+}
 
 // 导出单词列表功能
 function exportWordList() {
@@ -347,7 +466,7 @@ function loadUserMediaForStudy(mediaId) {
 
 // 加载用户媒体数据
 function loadUserMediaData(media) {
-    showLoadingIndicator();
+    showGlobalLoading(`正在加载媒体 "${media.title}"...`);
     
     setState({ 
         currentView: 'study', 
@@ -376,35 +495,98 @@ function loadUserMediaData(media) {
     }
     
     // 隐藏加载指示器
-    hideLoadingIndicator();
+    hideGlobalLoading();
 }
 
 // 渲染电影列表
-function renderMovieList() {
+async function renderMovieList() {
     if (!elements.movieListContainer) return;
     
     elements.movieListContainer.innerHTML = ''; // 清空现有内容
     
-    movies.forEach(movie => {
+    // 从Supabase获取电影列表
+    let movies = [];
+    try {
+        movies = await getMovies();
+        console.log('从Supabase获取到的电影列表:', movies);
+    } catch (error) {
+        console.warn('从Supabase获取电影列表失败:', error);
+    }
+    
+    // 如果没有从Supabase获取到电影，则使用本地数据
+    if (!movies || movies.length === 0) {
+        console.log('使用本地电影数据');
+        movies = window.movies || [];
+    }
+    
+    console.log('最终使用的电影列表:', movies);
+    
+    // 确保至少有本地示例数据
+    if (movies.length === 0 && typeof window.movies !== 'undefined') {
+        movies.push(...window.movies);
+    }
+    
+    // 如果仍然没有电影数据，添加一个示例
+    if (movies.length === 0) {
+        movies = [
+            { 
+                id: 'inception', 
+                title: '盗梦空间', 
+                posterUrl: 'assets/Inception.2010.Bluray.1080p.DTS-HD.x264-Grym.英文.png', 
+                srtPath: 'data/Inception.2010.Bluray.1080p.DTS-HD.x264-Grym.英文.srt' 
+            }
+        ];
+    }
+    
+    // 渲染电影卡片
+    for (const movie of movies) {
         const movieCard = document.createElement('div');
         movieCard.className = 'movie-card';
+        
+        // 获取电影的学习统计数据（仅对Supabase中的电影）
+        let progressHtml = '';
+        if (movie.id && !movie.id.startsWith('user_')) {
+            try {
+                const stats = await getMovieStats(movie.id);
+                // 创建进度条HTML
+                progressHtml = stats.totalWords > 0 ? 
+                    `<div class="movie-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${(stats.learnedWords / stats.totalWords) * 100}%"></div>
+                        </div>
+                        <div class="progress-text">${stats.learnedWords} / ${stats.totalWords} 词已学习</div>
+                    </div>` : '';
+            } catch (error) {
+                console.warn('获取电影统计数据失败:', error);
+            }
+        }
+        
+        // 确保posterUrl和srtPath正确
+        const posterUrl = movie.cover_url || movie.posterUrl || 'https://via.placeholder.com/200x250?text=No+Image';
+        const srtPath = movie.subtitle_url || movie.srtPath || '';
+        
         movieCard.innerHTML = `
-            <img src="${movie.posterUrl}" alt="${movie.title}" class="movie-poster" onerror="this.src='https://via.placeholder.com/200x250?text=No+Image'">
+            <img src="${posterUrl}" alt="${movie.title}" class="movie-poster" onerror="this.src='https://via.placeholder.com/200x250?text=No+Image'">
             <div class="movie-title">${movie.title}</div>
+            ${progressHtml}
         `;
         
         movieCard.addEventListener('click', () => {
             // 加载电影数据并切换到学习视图
-            loadMovieData(movie);
+            loadMovieData({
+                ...movie,
+                posterUrl: posterUrl,
+                srtPath: srtPath
+            });
         });
         
         elements.movieListContainer.appendChild(movieCard);
-    });
+    }
 }
 
 // 改造：异步加载电影数据
 async function loadMovieData(movie) {
-    showLoadingIndicator();
+    showGlobalLoading(`正在加载电影 "${movie.title}"...`);
     
     setState({ 
         currentView: 'study', 
@@ -418,52 +600,60 @@ async function loadMovieData(movie) {
         studyMode: 'browse'
     });
 
-    // 异步加载，不阻塞UI
-    fetch(movie.srtPath)
-        .then(response => response.text())
-        .then(srtContent => {
-            const sentences = parseSRT(srtContent);
-            const words = extractWords(sentences);
-            
-            // 计算单词频率
-            const wordFrequency = calculateWordFrequency(sentences);
-            
-            // 从LocalStorage加载学习进度和熟练度数据
-            const savedData = localStorage.getItem(`linguasubs_${movie.id}`);
-            const movieData = savedData ? JSON.parse(savedData) : {};
-            const progressData = movieData.progressData || {};
-            const wordProficiency = movieData.wordProficiency || {};
+    try {
+        // 异步加载，不阻塞UI
+        const response = await fetch(movie.srtPath || movie.subtitle_url);
+        const srtContent = await response.text();
+        
+        const sentences = parseSRT(srtContent);
+        const words = extractWords(sentences);
+        
+        // 计算单词频率
+        const wordFrequency = calculateWordFrequency(sentences);
+        
+        // 从Supabase加载学习进度和熟练度数据
+        const progressData = await getUserProgress(movie.id);
 
-            setState({ 
-                allWords: words, 
-                sentences: sentences,
-                progressData: progressData,
-                wordFrequency: wordFrequency,
-                wordProficiency: wordProficiency
-            });
-            
-            // 默认选择第一个单词
-            if (words.length > 0) {
-                selectWord(words[0]);
-            }
-            
-            // 预取接下来的单词
-            prefetchWords(words, progressData);
-        })
-        .catch(error => {
-            console.error('加载电影数据时出错:', error);
-            // 显示错误信息
-            setState({ 
-                currentWordDetails: {
-                    word: '加载失败',
-                    phonetic: '',
-                    meanings: [{ partOfSpeech: '错误', definitions: ['无法加载电影数据，请检查控制台了解详情。'] }]
-                }
-            });
-        })
-        .finally(() => {
-            hideLoadingIndicator();
+        setState({ 
+            allWords: words, 
+            sentences: sentences,
+            progressData: progressData,
+            wordFrequency: wordFrequency,
+            wordProficiency: extractWordProficiencyFromProgress(progressData),
+            studyMode: 'browse'
         });
+        
+        // 默认选择第一个单词
+        if (words.length > 0) {
+            selectWord(words[0]);
+        }
+        
+        // 预取接下来的单词
+        prefetchWords(words, progressData);
+    } catch (error) {
+        console.error('加载电影数据时出错:', error);
+        // 显示错误信息
+        setState({ 
+            currentWordDetails: {
+                word: '加载失败',
+                phonetic: '',
+                meanings: [{ partOfSpeech: '错误', definitions: ['无法加载电影数据，请检查控制台了解详情。'] }]
+            }
+        });
+    } finally {
+        hideGlobalLoading();
+    }
+}
+
+// 从进度数据中提取单词熟练度
+function extractWordProficiencyFromProgress(progressData) {
+    const wordProficiency = {};
+    for (const [word, progress] of Object.entries(progressData)) {
+        if (progress.proficiency) {
+            wordProficiency[word] = progress.proficiency;
+        }
+    }
+    return wordProficiency;
 }
 
 // 计算单词频率
@@ -480,32 +670,6 @@ function calculateWordFrequency(sentences) {
     });
     
     return frequency;
-}
-
-// 选择单词（从stateManager导入）
-function selectWord(word) {
-    // 更新当前单词
-    setState({ 
-        currentWord: word,
-        currentWordDetails: null
-    });
-    
-    // 获取单词详细信息
-    getWordDetails(word).then(wordDetails => {
-        if (wordDetails) {
-            setState({ 
-                currentWordDetails: wordDetails
-            });
-        } else {
-            setState({ 
-                currentWordDetails: {
-                    word: word,
-                    phonetic: '',
-                    meanings: [{ partOfSpeech: '信息', definitions: ['未找到该单词的详细信息。', '这可能是一个专有名词或拼写错误。'] }]
-                }
-            });
-        }
-    });
 }
 
 // 显示下一个单词（用于SRS学习模式）
@@ -560,26 +724,16 @@ function handleFeedback(feedback) {
     
     if (currentWord && currentWord !== '加载中...' && currentWord !== '恭喜！' && currentWord !== '加载失败') {
         // 更新单词的学习进度
-        const wordStats = appState.progressData[currentWord] || null;
-        appState.progressData[currentWord] = calculateNextReview(wordStats, feedback);
+        const wordStats = appState.progressData[currentWord] || {};
+        const updatedStats = calculateNextReview(wordStats, feedback);
         
-        // 保存到LocalStorage
+        // 保存到Supabase
         if (appState.currentMovie) {
-            if (appState.currentMovie.isUserMedia) {
-                // 保存用户上传的媒体数据
-                const userMediaKey = `linguasubs_user_${appState.currentMovie.id}`;
-                const userData = JSON.parse(localStorage.getItem(userMediaKey)) || {};
-                userData.progressData = appState.progressData;
-                userData.wordProficiency = appState.wordProficiency;
-                localStorage.setItem(userMediaKey, JSON.stringify(userData));
-            } else {
-                // 保存示例电影数据
-                const savedData = localStorage.getItem(`linguasubs_${appState.currentMovie.id}`);
-                const movieData = savedData ? JSON.parse(savedData) : {};
-                movieData.progressData = appState.progressData;
-                localStorage.setItem(`linguasubs_${appState.currentMovie.id}`, JSON.stringify(movieData));
-            }
+            saveUserProgress(appState.currentMovie.id, currentWord, updatedStats);
         }
+        
+        // 更新本地状态
+        appState.progressData[currentWord] = updatedStats;
         
         // 显示下一个单词
         showNextWord();
@@ -652,8 +806,8 @@ function showMessage(message, type = 'info') {
 
 // 实现 API 预取 (Pre-fetching) 提升流畅度
 function prefetchWords(words, progress) {
-    const wordsToPrefetch = [];
     // 找到接下来 5 个最可能学习的单词
+    const wordsToPrefetch = [];
     let tempProgress = JSON.parse(JSON.stringify(progress)); // 深拷贝进度，避免影响主逻辑
     for (let i = 0; i < 5; i++) {
         const nextWord = getNextWord(words, tempProgress);
@@ -666,14 +820,119 @@ function prefetchWords(words, progress) {
         }
     }
 
-    // 对需要预取的单词，如果缓存中没有，则发起API请求
-    wordsToPrefetch.forEach(word => {
-        if (!appState.wordDetailsCache[word]) {
-            getWordDetails(word).then(details => {
-                if (details) {
-                    console.log(`预取成功: ${word}`);
-                }
-            });
+    // 使用新的预取函数
+    if (wordsToPrefetch.length > 0) {
+        prefetchWordDetails(wordsToPrefetch).catch(error => {
+            console.error('预取过程中出错:', error);
+        });
+    }
+}
+
+// 处理上传提交
+async function handleUploadSubmit() {
+    const titleInput = document.getElementById('movie-title-input'); // 修正ID
+    const subtitleFileInput = document.getElementById('subtitle-file');
+    const coverFileInput = document.getElementById('cover-file');
+    const uploadModal = document.getElementById('upload-modal');
+    
+    // 获取输入值
+    const title = titleInput ? titleInput.value.trim() : '';
+    const subtitleFile = subtitleFileInput ? subtitleFileInput.files[0] : null;
+    const coverFile = coverFileInput ? coverFileInput.files[0] : null;
+    
+    // 验证输入
+    if (!title) {
+        showMessage('请输入电影标题', 'error');
+        return;
+    }
+    
+    if (!subtitleFile) {
+        showMessage('请选择字幕文件', 'error');
+        return;
+    }
+    
+    if (!subtitleFile.name.endsWith('.srt')) {
+        showMessage('请选择SRT格式的字幕文件', 'error');
+        return;
+    }
+    
+    showGlobalLoading('正在上传文件...');
+    
+    try {
+        // 读取字幕文件内容
+        const srtContent = await readFileAsText(subtitleFile);
+        
+        // 解析字幕内容
+        const sentences = parseSRT(srtContent);
+        const words = extractWords(sentences);
+        const wordFrequency = calculateWordFrequency(sentences);
+        
+        // 上传文件到Supabase Storage
+        let subtitleUrl = null;
+        let coverUrl = null;
+        
+        // 上传字幕文件
+        if (subtitleFile) {
+            const subtitleFileName = `subtitles/${Date.now()}_${subtitleFile.name}`;
+            subtitleUrl = await uploadFile(subtitleFile, 'subtitles', subtitleFileName);
+            if (!subtitleUrl) {
+                throw new Error('字幕文件上传失败');
+            }
         }
+        
+        // 上传封面图片（如果提供了）
+        if (coverFile) {
+            const coverFileName = `covers/${Date.now()}_${coverFile.name}`;
+            coverUrl = await uploadFile(coverFile, 'covers', coverFileName);
+        }
+        
+        showGlobalLoading('正在创建电影记录...');
+        
+        // 创建电影记录
+        const movieData = {
+            title: title,
+            subtitle_url: subtitleUrl,
+            cover_url: coverUrl || 'https://via.placeholder.com/200x250?text=No+Image',
+            word_count: words.length
+        };
+        
+        const createdMovie = await createMovie(movieData);
+        if (!createdMovie) {
+            throw new Error('电影记录创建失败');
+        }
+        
+        // 关闭模态框
+        if (uploadModal) {
+            uploadModal.classList.add('hidden');
+        }
+        
+        // 重置表单
+        if (titleInput) titleInput.value = '';
+        if (subtitleFileInput) subtitleFileInput.value = '';
+        if (coverFileInput) coverFileInput.value = '';
+        
+        // 显示成功消息
+        showMessage('电影上传成功！', 'success');
+        
+        // 重新渲染电影列表
+        await renderMovieList();
+    } catch (error) {
+        console.error('上传过程中出错:', error);
+        showMessage(`上传失败: ${error.message}`, 'error');
+    } finally {
+        hideGlobalLoading();
+    }
+}
+
+// 读取文件内容为文本
+function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (e) => reject(new Error('文件读取失败'));
+        reader.readAsText(file);
     });
 }
+
+// 导出loadMovieData函数
+export { loadMovieData };
