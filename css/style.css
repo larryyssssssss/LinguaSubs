@@ -130,6 +130,12 @@ body {
     color: white;
 }
 
+.word-item .word-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .word-item .word-text {
     font-weight: bold;
     font-size: 1.1em;
@@ -141,6 +147,42 @@ body {
     padding: 3px 8px;
     border-radius: 12px;
     font-size: 0.8em;
+}
+
+/* 熟练度标记样式 */
+.proficiency-container {
+    position: relative;
+}
+
+.proficiency-select {
+    padding: 5px 10px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    background-color: white;
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+.proficiency-select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+/* 根据熟练度设置不同颜色 */
+.proficiency-select option[value="beginner"] {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.proficiency-select option[value="intermediate"] {
+    background-color: #f39c12;
+    color: white;
+}
+
+.proficiency-select option[value="advanced"] {
+    background-color: #2ecc71;
+    color: white;
 }
 
 /* 右侧面板 - 单词详情 */

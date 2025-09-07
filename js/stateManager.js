@@ -7,7 +7,8 @@ const appState = {
     currentWord: null, // 当前正在学习的单词
     currentWordDetails: null, // 当前单词的详细信息
     progressData: {}, // 学习进度数据
-    wordFrequency: {} // 单词频率统计
+    wordFrequency: {}, // 单词频率统计
+    wordProficiency: {} // 单词熟练度标记 { word: 'beginner' | 'intermediate' | 'advanced' }
 };
 
 const elements = {
@@ -69,14 +70,35 @@ function renderWordList() {
         }
         
         const frequency = appState.wordFrequency[word] || 1;
+        const proficiency = appState.wordProficiency[word] || 'unknown';
         
         wordItem.innerHTML = `
-            <span class="word-text">${word}</span>
-            <span class="word-frequency">${frequency}</span>
+            <div class="word-info">
+                <span class="word-text">${word}</span>
+                <span class="word-frequency">${frequency}</span>
+            </div>
+            <div class="proficiency-container">
+                <select class="proficiency-select" data-word="${word}">
+                    <option value="unknown" ${proficiency === 'unknown' ? 'selected' : ''}>未标记</option>
+                    <option value="beginner" ${proficiency === 'beginner' ? 'selected' : ''}>生词</option>
+                    <option value="intermediate" ${proficiency === 'intermediate' ? 'selected' : ''}>学习中</option>
+                    <option value="advanced" ${proficiency === 'advanced' ? 'selected' : ''}>已掌握</option>
+                </select>
+            </div>
         `;
         
-        wordItem.addEventListener('click', () => {
+        wordItem.addEventListener('click', (e) => {
+            // 如果点击的是下拉框，不触发选择单词
+            if (e.target.classList.contains('proficiency-select')) {
+                return;
+            }
             selectWord(word);
+        });
+        
+        // 添加熟练度选择事件
+        const selectElement = wordItem.querySelector('.proficiency-select');
+        selectElement.addEventListener('change', (e) => {
+            setWordProficiency(word, e.target.value);
         });
         
         elements.wordListContainer.appendChild(wordItem);
@@ -144,6 +166,22 @@ async function selectWord(word) {
             }
         });
     }
+}
+
+// 设置单词熟练度
+function setWordProficiency(word, proficiency) {
+    appState.wordProficiency[word] = proficiency;
+    
+    // 保存到LocalStorage
+    if (appState.currentMovie) {
+        const savedData = localStorage.getItem(`linguasubs_${appState.currentMovie.id}`);
+        const movieData = savedData ? JSON.parse(savedData) : {};
+        movieData.wordProficiency = appState.wordProficiency;
+        localStorage.setItem(`linguasubs_${appState.currentMovie.id}`, JSON.stringify(movieData));
+    }
+    
+    // 更新UI
+    updateUI();
 }
 
 // 新增：查找例句的函数

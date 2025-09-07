@@ -44,7 +44,8 @@ async function loadMovieData(movie) {
         allWords: [],
         sentences: [],
         progressData: {},
-        wordFrequency: {}
+        wordFrequency: {},
+        wordProficiency: {}
     });
 
     // 异步加载，不阻塞UI
@@ -57,15 +58,18 @@ async function loadMovieData(movie) {
             // 计算单词频率
             const wordFrequency = calculateWordFrequency(sentences);
             
-            // 从LocalStorage加载学习进度
-            const savedProgress = localStorage.getItem(`linguasubs_${movie.id}`);
-            const progressData = savedProgress ? JSON.parse(savedProgress) : {};
+            // 从LocalStorage加载学习进度和熟练度数据
+            const savedData = localStorage.getItem(`linguasubs_${movie.id}`);
+            const movieData = savedData ? JSON.parse(savedData) : {};
+            const progressData = movieData.progressData || {};
+            const wordProficiency = movieData.wordProficiency || {};
 
             setState({ 
                 allWords: words, 
                 sentences: sentences,
                 progressData: progressData,
-                wordFrequency: wordFrequency
+                wordFrequency: wordFrequency,
+                wordProficiency: wordProficiency
             });
             
             // 默认选择第一个单词
@@ -188,7 +192,10 @@ function handleFeedback(feedback) {
         
         // 保存到LocalStorage
         if (appState.currentMovie) {
-            localStorage.setItem(`linguasubs_${appState.currentMovie.id}`, JSON.stringify(appState.progressData));
+            const savedData = localStorage.getItem(`linguasubs_${appState.currentMovie.id}`);
+            const movieData = savedData ? JSON.parse(savedData) : {};
+            movieData.progressData = appState.progressData;
+            localStorage.setItem(`linguasubs_${appState.currentMovie.id}`, JSON.stringify(movieData));
         }
         
         // 显示下一个单词
