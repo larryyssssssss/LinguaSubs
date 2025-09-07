@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinguaSubs - 字幕词汇通</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 首页视图 -->
+    <div id="home-view">
+        <h1>LinguaSubs - 字幕词汇通</h1>
+        <div id="movie-list">
+            <!-- 电影卡片将在这里动态生成 -->
+        </div>
+    </div>
+
+    <!-- 学习视图 -->
+    <div id="study-view" class="hidden">
+        <div id="word-card">
+            <div class="word-header">
+                <h2 id="word"></h2>
+                <span id="phonetic"></span>
+                <button id="pronunciation-btn">🔊 发音</button>
+            </div>
+            <div id="definition"></div>
+            <div id="example-sentence"></div>
+            <div class="feedback-buttons">
+                <button id="forgot-btn">忘记了</button>
+                <button id="review-btn">需巩固</button>
+                <button id="known-btn">我认识</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/srs.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
