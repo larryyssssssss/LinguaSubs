@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (elements.forgotBtn) elements.forgotBtn.addEventListener('click', () => handleFeedback('Hard'));
     if (elements.reviewBtn) elements.reviewBtn.addEventListener('click', () => handleFeedback('Good'));
     if (elements.knownBtn) elements.knownBtn.addEventListener('click', () => handleFeedback('Easy'));
+    
+    // 绑定模式切换按钮事件
+    if (elements.browseModeBtn) elements.browseModeBtn.addEventListener('click', () => toggleStudyMode('browse'));
+    if (elements.reviewModeBtn) elements.reviewModeBtn.addEventListener('click', () => toggleStudyMode('review'));
 });
 
 // 渲染电影列表
@@ -45,7 +49,8 @@ async function loadMovieData(movie) {
         sentences: [],
         progressData: {},
         wordFrequency: {},
-        wordProficiency: {}
+        wordProficiency: {},
+        studyMode: 'browse'
     });
 
     // 异步加载，不阻塞UI
