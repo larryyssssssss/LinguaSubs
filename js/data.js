@@ -4,8 +4,8 @@ const movies = [
     { 
         id: '11111111-1111-1111-1111-111111111111', // 使用UUID格式的ID
         title: '盗梦空间', 
-        posterUrl: 'assets/Inception.2010.Bluray.1080p.DTS-HD.x264-Grym.英文.png', 
-        srtPath: 'data/Inception.2010.Bluray.1080p.DTS-HD.x264-Grym.英文.srt' 
+        posterUrl: 'assets/Inception.2010.Bluray.1080p.DTS-HD.x264-Grym.png', 
+        srtPath: 'data/Inception.2010.Bluray.1080p.DTS-HD.x264-Grym.srt' 
     }
     // 其他电影暂时注释掉，因为我们只有盗梦空间的资源
     // { 

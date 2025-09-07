@@ -505,7 +505,10 @@ function loadUserMediaData(media) {
 async function renderMovieList() {
     if (!elements.movieListContainer) return;
     
-    elements.movieListContainer.innerHTML = ''; // 清空现有内容
+    // 清空现有内容
+    elements.movieListContainer.innerHTML = '';
+    
+    console.log('开始获取电影列表...');
     
     // 从Supabase获取电影列表
     let movies = [];
@@ -535,8 +538,8 @@ async function renderMovieList() {
             { 
                 id: '11111111-1111-1111-1111-111111111111', // 使用UUID格式的ID
                 title: '盗梦空间', 
-                posterUrl: 'assets/Inception.2010.Bluray.1080p.DTS-HD.x264-Grym.英文.png', 
-                srtPath: 'data/Inception.2010.Bluray.1080p.DTS-HD.x264-Grym.英文.srt' 
+                posterUrl: 'assets/Inception.2010.Bluray.1080p.DTS-HD.x264-Grym.png', 
+                srtPath: 'data/Inception.2010.Bluray.1080p.DTS-HD.x264-Grym.srt' 
             }
         ];
     }
@@ -565,11 +568,13 @@ async function renderMovieList() {
         }
         
         // 确保posterUrl和srtPath正确
-        const posterUrl = movie.cover_url || movie.posterUrl || 'https://via.placeholder.com/200x250?text=No+Image';
-        const srtPath = movie.subtitle_url || movie.srtPath || '';
+        const posterUrl = movie.cover_url || movie.poster_url || movie.posterUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI1MCIgZmlsbD0iI2NjYyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIGZpbGw9IiM2NjYiPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
+        
+        // 创建一个本地的占位符图片数据URL
+        const placeholderImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI1MCIgZmlsbD0iI2NjYyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIGZpbGw9IiM2NjYiPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
         
         movieCard.innerHTML = `
-            <img src="${posterUrl}" alt="${movie.title}" class="movie-poster" onerror="this.src='https://via.placeholder.com/200x250?text=No+Image'">
+            <img src="${posterUrl}" alt="${movie.title}" class="movie-poster" onerror="this.src='${placeholderImage}'">
             <div class="movie-title">${movie.title}</div>
             ${progressHtml}
         `;
@@ -579,7 +584,7 @@ async function renderMovieList() {
             loadMovieData({
                 ...movie,
                 posterUrl: posterUrl,
-                srtPath: srtPath
+                srtPath: movie.srtPath || movie.subtitle_url || movie.srt_path
             });
         });
         
@@ -605,7 +610,13 @@ async function loadMovieData(movie) {
 
     try {
         // 异步加载，不阻塞UI
-        const response = await fetch(movie.srtPath || movie.subtitle_url);
+        // 确保使用正确的字段名获取字幕文件路径
+        const srtPath = movie.srtPath || movie.subtitle_url || movie.srt_path;
+        if (!srtPath) {
+            throw new Error('未找到字幕文件路径');
+        }
+        
+        const response = await fetch(srtPath);
         const srtContent = await response.text();
         
         const sentences = parseSRT(srtContent);
@@ -640,7 +651,7 @@ async function loadMovieData(movie) {
             currentWordDetails: {
                 word: '加载失败',
                 phonetic: '',
-                meanings: [{ partOfSpeech: '错误', definitions: ['无法加载电影数据，请检查控制台了解详情。'] }]
+                meanings: [{ partOfSpeech: '错误', definitions: ['无法加载电影数据，请检查控制台了解详情。', `错误信息: ${error.message}`] }]
             }
         });
     } finally {
@@ -833,95 +844,71 @@ function prefetchWords(words, progress) {
 
 // 处理上传提交
 async function handleUploadSubmit() {
-    const titleInput = document.getElementById('movie-title-input'); // 修正ID
+    const titleInput = document.getElementById('movie-title-input');
     const subtitleFileInput = document.getElementById('subtitle-file');
     const coverFileInput = document.getElementById('cover-file');
     const uploadModal = document.getElementById('upload-modal');
     
-    // 获取输入值
-    const title = titleInput ? titleInput.value.trim() : '';
-    const subtitleFile = subtitleFileInput ? subtitleFileInput.files[0] : null;
-    const coverFile = coverFileInput ? coverFileInput.files[0] : null;
+    const title = titleInput.value.trim();
+    const subtitleFile = subtitleFileInput.files[0];
+    const coverFile = coverFileInput.files[0];
     
-    // 验证输入
-    if (!title) {
-        showMessage('请输入电影标题', 'error');
-        return;
-    }
-    
-    if (!subtitleFile) {
-        showMessage('请选择字幕文件', 'error');
-        return;
-    }
-    
-    if (!subtitleFile.name.endsWith('.srt')) {
-        showMessage('请选择SRT格式的字幕文件', 'error');
+    if (!title || !subtitleFile) {
+        alert('请填写电影标题并选择字幕文件');
         return;
     }
     
     showGlobalLoading('正在上传文件...');
     
     try {
-        // 读取字幕文件内容
-        const srtContent = await readFileAsText(subtitleFile);
-        
-        // 解析字幕内容
-        const sentences = parseSRT(srtContent);
-        const words = extractWords(sentences);
-        const wordFrequency = calculateWordFrequency(sentences);
-        
-        // 上传文件到Supabase Storage
-        let subtitleUrl = null;
-        let coverUrl = null;
+        // 生成文件名（使用时间戳确保唯一性）
+        const timestamp = Date.now();
+        const subtitleFileName = `${timestamp}_${subtitleFile.name}`;
+        const coverFileName = coverFile ? `${timestamp}_${coverFile.name}` : null;
         
         // 上传字幕文件
-        if (subtitleFile) {
-            const subtitleFileName = `subtitles/${Date.now()}_${subtitleFile.name}`;
-            subtitleUrl = await uploadFile(subtitleFile, 'subtitles', subtitleFileName);
-            if (!subtitleUrl) {
-                throw new Error('字幕文件上传失败');
-            }
+        const subtitleUrl = await uploadFile(subtitleFile, supabaseConfig.storage.subtitlesBucket, subtitleFileName);
+        if (!subtitleUrl) {
+            throw new Error('字幕文件上传失败');
         }
         
         // 上传封面图片（如果提供了）
+        let coverUrl = null;
         if (coverFile) {
-            const coverFileName = `covers/${Date.now()}_${coverFile.name}`;
-            coverUrl = await uploadFile(coverFile, 'covers', coverFileName);
+            coverUrl = await uploadFile(coverFile, supabaseConfig.storage.coversBucket, coverFileName);
+            if (!coverUrl) {
+                console.warn('封面图片上传失败，将继续创建电影记录');
+            }
         }
-        
-        showGlobalLoading('正在创建电影记录...');
         
         // 创建电影记录
         const movieData = {
             title: title,
+            poster_url: coverUrl,
             subtitle_url: subtitleUrl,
-            cover_url: coverUrl || 'https://via.placeholder.com/200x250?text=No+Image',
-            word_count: words.length
+            word_count: 0 // 初始词汇数为0，将在学习过程中更新
         };
         
-        const createdMovie = await createMovie(movieData);
-        if (!createdMovie) {
+        const movie = await createMovie(movieData);
+        if (!movie) {
             throw new Error('电影记录创建失败');
         }
         
-        // 关闭模态框
-        if (uploadModal) {
-            uploadModal.classList.add('hidden');
-        }
+        // 隐藏模态框
+        if (uploadModal) uploadModal.classList.add('hidden');
         
         // 重置表单
-        if (titleInput) titleInput.value = '';
-        if (subtitleFileInput) subtitleFileInput.value = '';
-        if (coverFileInput) coverFileInput.value = '';
+        titleInput.value = '';
+        subtitleFileInput.value = '';
+        coverFileInput.value = '';
         
-        // 显示成功消息
-        showMessage('电影上传成功！', 'success');
+        // 刷新用户媒体库
+        renderUserLibrary();
         
-        // 重新渲染电影列表
-        await renderMovieList();
+        console.log('电影上传成功:', movie);
     } catch (error) {
-        console.error('上传过程中出错:', error);
-        showMessage(`上传失败: ${error.message}`, 'error');
+        console.error('上传失败:', error);
+        alert(`上传失败: ${error.message}`);
     } finally {
         hideGlobalLoading();
     }

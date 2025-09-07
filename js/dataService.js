@@ -205,10 +205,13 @@ async function uploadFile(file, bucket, fileName) {
     }
 
     try {
+        // 处理文件名，确保不包含中文字符
+        const sanitizedFileName = sanitizeFileName(fileName);
+        
         const { data, error } = await supabase
             .storage
             .from(bucket)
-            .upload(fileName, file, {
+            .upload(sanitizedFileName, file, {
                 cacheControl: '3600',
                 upsert: true
             });
@@ -222,13 +225,27 @@ async function uploadFile(file, bucket, fileName) {
         const { data: { publicUrl } } = supabase
             .storage
             .from(bucket)
-            .getPublicUrl(fileName);
+            .getPublicUrl(sanitizedFileName);
 
         return publicUrl;
     } catch (error) {
         console.error('文件上传时发生异常:', error);
         return null;
     }
+}
+
+/**
+ * 处理文件名，移除或替换不支持的字符
+ * @param {string} fileName 原始文件名
+ * @returns {string} 处理后的文件名
+ */
+function sanitizeFileName(fileName) {
+    // 移除或替换不支持的字符，包括中文字符
+    return fileName
+        .replace(/[^\x00-\x7F]/g, '') // 移除非ASCII字符（包括中文）
+        .replace(/[^a-zA-Z0-9._-]/g, '_') // 将其他特殊字符替换为下划线
+        .replace(/_+/g, '_') // 将多个连续下划线替换为单个下划线
+        .replace(/^_+|_+$/g, ''); // 移除开头和结尾的下划线
 }
 
 /**

@@ -3,28 +3,30 @@
  * 用于与Supabase后端服务进行交互
  */
 
-import { supabaseConfig } from './supabaseConfig.js';
+import { supabaseConfig, isSupabaseConfigured, getSupabaseConfig } from './supabaseConfig.js';
 
 /**
  * 创建Supabase客户端实例
- * 注意：实际的URL和密钥需要通过环境变量或安全方式注入
  */
 let supabase;
 
-// 检查是否已经配置了Supabase并且全局supabase对象存在
-if (typeof window !== 'undefined' && window.supabase && supabaseConfig.url !== 'YOUR_SUPABASE_URL' && 
-    supabaseConfig.anonKey !== 'YOUR_SUPABASE_ANON_KEY') {
-    supabase = window.supabase.createClient(
-        supabaseConfig.url,
-        supabaseConfig.anonKey
-    );
+// 检查Supabase配置是否完整
+if (!isSupabaseConfigured()) {
+    console.warn('Supabase配置不完整，请在 index.html 中设置 SUPABASE_CONFIG 或在 supabaseConfig.js 中设置实际的配置值');
+    console.info('获取配置信息的步骤：');
+    console.info('1. 访问 Supabase 控制台 (https://app.supabase.com/)');
+    console.info('2. 选择您的项目');
+    console.info('3. 在左侧菜单中点击 "Settings" -> "API"');
+    console.info('4. 复制 "Project URL" 和 "anon public key"');
+    console.info('5. 在 index.html 中的 SUPABASE_CONFIG 对象中设置这些值');
 } else if (typeof window !== 'undefined' && window.supabase) {
-    // 如果配置不完整但仍想初始化一个客户端用于测试
-    console.warn('Supabase配置不完整，使用默认配置');
+    // 创建Supabase客户端
+    const config = getSupabaseConfig();
     supabase = window.supabase.createClient(
-        supabaseConfig.url,
-        supabaseConfig.anonKey
+        config.url,
+        config.anonKey
     );
+    console.log('Supabase客户端初始化成功');
 } else {
     console.warn('Supabase SDK未正确加载');
     supabase = null;
@@ -35,7 +37,7 @@ if (typeof window !== 'undefined' && window.supabase && supabaseConfig.url !== '
  * @returns {boolean} Supabase客户端是否可用
  */
 function isSupabaseAvailable() {
-    return supabase !== null;
+    return supabase !== null && isSupabaseConfigured();
 }
 
 // 导出Supabase客户端和检查函数

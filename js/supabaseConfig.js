@@ -1,6 +1,12 @@
 /**
  * Supabase配置文件
- * 注意：此文件不包含实际的API密钥，需要在运行时通过环境变量或安全方式注入
+ * 
+ * 要获取这些配置信息，请按照以下步骤操作：
+ * 1. 访问 Supabase 控制台 (https://app.supabase.com/)
+ * 2. 选择您的项目
+ * 3. 在左侧菜单中点击 "Settings" (设置)
+ * 4. 点击 "API" 选项卡
+ * 5. 复制 "Project URL" 和 "anon public key"
  */
 
 // 获取Supabase配置
@@ -13,10 +19,11 @@ function getSupabaseConfig() {
         };
     }
     
-    // 默认配置
+    // 如果没有全局配置，返回默认值（需要替换为实际值）
+    console.warn('请在 index.html 中配置 SUPABASE_CONFIG 或在此文件中设置实际的 Supabase 配置');
     return {
-        url: 'YOUR_SUPABASE_URL',
-        anonKey: 'YOUR_SUPABASE_ANON_KEY'
+        url: 'https://your-project-id.supabase.co', // 替换为您的 Supabase 项目 URL
+        anonKey: 'your-anon-key-here' // 替换为您的 Supabase 匿名密钥
     };
 }
 
@@ -47,9 +54,12 @@ const supabaseConfig = {
 
 // 检查配置是否完整
 function isSupabaseConfigured() {
-    return supabaseConfig.url !== 'YOUR_SUPABASE_URL' && 
-           supabaseConfig.anonKey !== 'YOUR_SUPABASE_ANON_KEY';
+    const config = getSupabaseConfig();
+    return config.url && 
+           config.url !== 'https://your-project-id.supabase.co' && 
+           config.anonKey && 
+           config.anonKey !== 'your-anon-key-here';
 }
 
 // 导出配置
-export { supabaseConfig, isSupabaseConfigured };
+export { supabaseConfig, isSupabaseConfigured, getSupabaseConfig };

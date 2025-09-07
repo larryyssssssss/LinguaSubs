@@ -83,3 +83,6 @@ function extractWords(sentences) {
     
     return coreWords;
 }
+
+// 导出函数
+export { parseSRT, extractWords };
