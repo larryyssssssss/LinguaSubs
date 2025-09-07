@@ -104,3 +104,6 @@ function getNextWord(allWords, progressData) {
     // 5. 如果都没有，返回null
     return null;
 }
+
+// 导出函数
+export { calculateNextReview, getNextWord };

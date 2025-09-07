@@ -1,5 +1,12 @@
 # LinguaSubs 变更日志
 
+## [v1.2.5] - 2025-09-07
+
+### 修复问题
+- **模块导出错误**: 
+  - 修复了[srs.js](file:///Users/tantan/code/LinguaSubs/js/srs.js)文件中缺少函数导出的问题，正确导出[calculateNextReview](file:///Users/tantan/code/LinguaSubs/js/srs.js#L47-L70)和[getNextWord](file:///Users/tantan/code/LinguaSubs/js/srs.js#L79-L104)函数
+  - 修复了数据库表结构，添加了[proficiency](file:///Users/tantan/code/LinguaSubs/js/stateManager.js#L5-L27)字段以支持单词熟练度功能
+
 ## [v1.2.4] - 2025-09-07
 
 ### 修复问题
