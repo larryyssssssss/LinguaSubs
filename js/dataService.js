@@ -256,7 +256,8 @@ async function getMovieStats(movieId) {
 
         // 计算总单词数和已学习单词数
         const totalWords = data.length;
-        const learnedWords = data.filter(item => item.proficiency).length;
+        // 注意：这里的proficiency字段可能在数据库中不存在，我们检查是否存在
+        const learnedWords = data.filter(item => item.proficiency !== undefined).length;
 
         return { totalWords, learnedWords };
     } catch (error) {

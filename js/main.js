@@ -3,8 +3,12 @@ import { getMovies, getMovieById, getUserProgress, saveUserProgress, saveWordPro
 import { initRouter, navigateTo } from './router.js';
 import { prefetchWordDetails } from './api.js';
 import { showGlobalLoading, hideGlobalLoading } from './loadingManager.js';
-import { setState, elements, initializeElements, toggleStudyMode, toggleSettings, saveSettings, resetSettings, selectWord, setWordProficiency, renderWordList, renderWordDetails } from './stateManager.js';
+import { setState, elements, initializeElements, toggleStudyMode, toggleSettings, saveSettings, resetSettings, selectWord, setWordProficiency, renderWordList, renderWordDetails, appState } from './stateManager.js'; // 导入appState
 import { movies } from './data.js'; // 导入本地电影数据
+import { calculateNextReview, getNextWord } from './srs.js';
+import { parseSRT, extractWords } from './utils.js';
+import { uploadFile, createMovie } from './dataService.js';
+import { prefetchWordDetails } from './api.js';
 
 // DOM加载完成后执行
 document.addEventListener('DOMContentLoaded', function() {
