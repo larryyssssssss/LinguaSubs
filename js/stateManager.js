@@ -1,5 +1,5 @@
 import { saveWordProficiency } from './dataService.js';
-import { wordDetailsCache } from './api.js';
+import { wordDetailsCache, getWordDetails } from './api.js'; // 导入getWordDetails函数
 
 const appState = {
     currentView: 'home', // 'home', 'study'
@@ -476,5 +476,5 @@ function setState(newState) {
     updateUI();
 }
 
-// 导出appState、setState函数、elements对象、selectWord函数、setWordProficiency函数、renderWordList函数、renderWordDetails函数、toggleStudyMode函数、toggleSettings函数、saveSettings函数和resetSettings函数
+// 导出appState、setState函数、elements对象、initializeElements函数、selectWord函数、setWordProficiency函数、renderWordList函数、renderWordDetails函数、toggleStudyMode函数、toggleSettings函数、saveSettings函数和resetSettings函数
 export { appState, setState, elements, initializeElements, selectWord, setWordProficiency, renderWordList, renderWordDetails, toggleStudyMode, toggleSettings, saveSettings, resetSettings };

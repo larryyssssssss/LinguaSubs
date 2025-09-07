@@ -1,5 +1,13 @@
 # LinguaSubs 变更日志
 
+## [v1.2.2] - 2025-09-07
+
+### 修复问题
+- **示例影片访问错误**: 
+  - 修复了示例影片ID格式不兼容Supabase的问题，使用UUID格式ID
+  - 修复了[stateManager.js](file:///Users/tantan/code/LinguaSubs/js/stateManager.js)中[getWordDetails](file:///Users/tantan/code/LinguaSubs/js/api.js#L109-L131)函数未导入的问题
+  - 优化了电影列表渲染逻辑，增加对UUID格式的检查
+
 ## [v1.2.1] - 2025-09-07
 
 ### 改进功能

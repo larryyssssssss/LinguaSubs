@@ -530,7 +530,7 @@ async function renderMovieList() {
     if (movies.length === 0) {
         movies = [
             { 
-                id: 'inception', 
+                id: '11111111-1111-1111-1111-111111111111', // 使用UUID格式的ID
                 title: '盗梦空间', 
                 posterUrl: 'assets/Inception.2010.Bluray.1080p.DTS-HD.x264-Grym.英文.png', 
                 srtPath: 'data/Inception.2010.Bluray.1080p.DTS-HD.x264-Grym.英文.srt' 
@@ -545,7 +545,7 @@ async function renderMovieList() {
         
         // 获取电影的学习统计数据（仅对Supabase中的电影）
         let progressHtml = '';
-        if (movie.id && !movie.id.startsWith('user_')) {
+        if (movie.id && !movie.id.startsWith('user_') && movie.id.includes('-')) { // 检查是否为UUID格式
             try {
                 const stats = await getMovieStats(movie.id);
                 // 创建进度条HTML
