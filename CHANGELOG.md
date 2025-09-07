@@ -1,11 +1,18 @@
 # LinguaSubs 变更日志
 
+## [v1.2.4] - 2025-09-07
+
+### 修复问题
+- **函数重复导入错误**: 
+  - 修复了[main.js](file:///Users/tantan/code/LinguaSubs/js/main.js)中[prefetchWordDetails](file:///Users/tantan/code/LinguaSubs/js/api.js#L133-L174)函数被重复导入的问题
+  - 确保所有ES6模块导入不重复，避免Identifier重复声明错误
+
 ## [v1.2.3] - 2025-09-07
 
 ### 修复问题
 - **模块加载错误**: 
   - 修复了[data.js](file:///Users/tantan/code/LinguaSubs/js/data.js)文件模块加载问题，正确添加type="module"属性
-  - 修复了[handleFeedback](file:///Users/tantan/code/LinguaSubs/js/main.js#L714-L741)函数中[appState](file:///Users/tantan/code/LinguaSubs/js/stateManager.js#L5-L27)未导入的问题
+  - 修复了[handleFeedback](file:///Users/tantan/code/LinguaSubs/js/main.js#L718-L745)函数中[appState](file:///Users/tantan/code/LinguaSubs/js/stateManager.js#L5-L27)未导入的问题
   - 优化了数据库查询错误处理，避免因字段不存在导致的错误
 
 ## [v1.2.2] - 2025-09-07

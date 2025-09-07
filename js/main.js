@@ -8,7 +8,6 @@ import { movies } from './data.js'; // 导入本地电影数据
 import { calculateNextReview, getNextWord } from './srs.js';
 import { parseSRT, extractWords } from './utils.js';
 import { uploadFile, createMovie } from './dataService.js';
-import { prefetchWordDetails } from './api.js';
 
 // DOM加载完成后执行
 document.addEventListener('DOMContentLoaded', function() {
