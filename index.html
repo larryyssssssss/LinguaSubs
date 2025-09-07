@@ -17,18 +17,31 @@
 
     <!-- 学习视图 -->
     <div id="study-view" class="hidden">
-        <div id="word-card">
-            <div class="word-header">
-                <h2 id="word"></h2>
-                <span id="phonetic"></span>
-                <button id="pronunciation-btn">🔊 发音</button>
+        <div class="study-container">
+            <!-- 左侧：单词列表 -->
+            <div class="word-list-panel">
+                <h2>词汇列表</h2>
+                <div id="word-list-container">
+                    <!-- 单词列表将在这里动态生成 -->
+                </div>
             </div>
-            <div id="definition"></div>
-            <div id="example-sentence"></div>
-            <div class="feedback-buttons">
-                <button id="forgot-btn">忘记了</button>
-                <button id="review-btn">需巩固</button>
-                <button id="known-btn">我认识</button>
+            
+            <!-- 右侧：单词详情/学习卡片 -->
+            <div class="word-detail-panel">
+                <div id="word-card">
+                    <div class="word-header">
+                        <h2 id="word"></h2>
+                        <span id="phonetic"></span>
+                        <button id="pronunciation-btn">🔊 发音</button>
+                    </div>
+                    <div id="definition"></div>
+                    <div id="example-sentence"></div>
+                    <div class="feedback-buttons">
+                        <button id="forgot-btn">忘记了</button>
+                        <button id="review-btn">需巩固</button>
+                        <button id="known-btn">我认识</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

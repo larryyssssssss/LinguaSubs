@@ -7,13 +7,15 @@ document.addEventListener('DOMContentLoaded', function() {
     setState({ currentView: 'home' });
     
     // 绑定按钮事件
-    elements.forgotBtn.addEventListener('click', () => handleFeedback('Hard'));
-    elements.reviewBtn.addEventListener('click', () => handleFeedback('Good'));
-    elements.knownBtn.addEventListener('click', () => handleFeedback('Easy'));
+    if (elements.forgotBtn) elements.forgotBtn.addEventListener('click', () => handleFeedback('Hard'));
+    if (elements.reviewBtn) elements.reviewBtn.addEventListener('click', () => handleFeedback('Good'));
+    if (elements.knownBtn) elements.knownBtn.addEventListener('click', () => handleFeedback('Easy'));
 });
 
 // 渲染电影列表
 function renderMovieList() {
+    if (!elements.movieListContainer) return;
+    
     elements.movieListContainer.innerHTML = ''; // 清空现有内容
     
     movies.forEach(movie => {
@@ -41,7 +43,8 @@ async function loadMovieData(movie) {
         currentWordDetails: null,
         allWords: [],
         sentences: [],
-        progressData: {}
+        progressData: {},
+        wordFrequency: {}
     });
 
     // 异步加载，不阻塞UI
@@ -51,6 +54,9 @@ async function loadMovieData(movie) {
             const sentences = parseSRT(srtContent);
             const words = extractWords(sentences);
             
+            // 计算单词频率
+            const wordFrequency = calculateWordFrequency(sentences);
+            
             // 从LocalStorage加载学习进度
             const savedProgress = localStorage.getItem(`linguasubs_${movie.id}`);
             const progressData = savedProgress ? JSON.parse(savedProgress) : {};
@@ -58,11 +64,14 @@ async function loadMovieData(movie) {
             setState({ 
                 allWords: words, 
                 sentences: sentences,
-                progressData: progressData
+                progressData: progressData,
+                wordFrequency: wordFrequency
             });
             
-            // 数据准备好后，开始显示第一个单词
-            showNextWord(); 
+            // 默认选择第一个单词
+            if (words.length > 0) {
+                selectWord(words[0]);
+            }
             
             // 预取接下来的单词
             prefetchWords(words, progressData);
@@ -80,7 +89,49 @@ async function loadMovieData(movie) {
         });
 }
 
-// 显示下一个单词
+// 计算单词频率
+function calculateWordFrequency(sentences) {
+    const frequency = {};
+    
+    sentences.forEach(sentence => {
+        // 提取所有英文单词
+        const words = sentence.match(/[a-zA-Z]+/g) || [];
+        words.forEach(word => {
+            const lowerWord = word.toLowerCase();
+            frequency[lowerWord] = (frequency[lowerWord] || 0) + 1;
+        });
+    });
+    
+    return frequency;
+}
+
+// 选择单词（从stateManager导入）
+function selectWord(word) {
+    // 更新当前单词
+    setState({ 
+        currentWord: word,
+        currentWordDetails: null
+    });
+    
+    // 获取单词详细信息
+    getWordDetails(word).then(wordDetails => {
+        if (wordDetails) {
+            setState({ 
+                currentWordDetails: wordDetails
+            });
+        } else {
+            setState({ 
+                currentWordDetails: {
+                    word: word,
+                    phonetic: '',
+                    meanings: [{ partOfSpeech: '信息', definitions: ['未找到该单词的详细信息。', '这可能是一个专有名词或拼写错误。'] }]
+                }
+            });
+        }
+    });
+}
+
+// 显示下一个单词（用于SRS学习模式）
 async function showNextWord() {
     // 使用SRS算法获取下一个单词
     const nextWord = getNextWord(appState.allWords, appState.progressData);
