@@ -9,7 +9,17 @@ const appState = {
     progressData: {}, // 学习进度数据
     wordFrequency: {}, // 单词频率统计
     wordProficiency: {}, // 单词熟练度标记 { word: 'beginner' | 'intermediate' | 'advanced' }
-    studyMode: 'browse' // 'browse' | 'review'
+    studyMode: 'browse', // 'browse' | 'review'
+    settings: {
+        minFrequency: 1,
+        proficiencyLabels: {
+            beginner: '生词',
+            intermediate: '学习中',
+            advanced: '已掌握'
+        },
+        dictionaryAPI: 'free-dictionary'
+    },
+    showSettings: false // 是否显示设置面板
 };
 
 const elements = {
@@ -27,7 +37,17 @@ const elements = {
     wordListContainer: document.getElementById('word-list-container'),
     browseModeBtn: document.getElementById('browse-mode-btn'),
     reviewModeBtn: document.getElementById('review-mode-btn'),
-    movieTitle: document.getElementById('movie-title')
+    movieTitle: document.getElementById('movie-title'),
+    settingsBtn: document.getElementById('settings-btn'),
+    settingsPanel: document.getElementById('settings-panel'),
+    closeSettingsBtn: document.getElementById('close-settings-btn'),
+    saveSettingsBtn: document.getElementById('save-settings-btn'),
+    resetSettingsBtn: document.getElementById('reset-settings-btn'),
+    minFrequencyInput: document.getElementById('min-frequency'),
+    beginnerLabelInput: document.getElementById('beginner-label'),
+    intermediateLabelInput: document.getElementById('intermediate-label'),
+    advancedLabelInput: document.getElementById('advanced-label'),
+    dictionaryAPISelect: document.getElementById('dictionary-api')
 };
 
 function updateUI() {
@@ -47,6 +67,16 @@ function updateUI() {
             elements.reviewModeBtn.classList.toggle('active', appState.studyMode === 'review');
         }
         
+        // 控制设置面板显示
+        if (elements.settingsPanel) {
+            elements.settingsPanel.classList.toggle('hidden', !appState.showSettings);
+        }
+        
+        // 更新设置面板内容
+        if (appState.showSettings) {
+            updateSettingsPanel();
+        }
+        
         // 渲染单词列表
         renderWordList();
         
@@ -61,6 +91,37 @@ function updateUI() {
             elements.exampleSentenceElement.innerHTML = '';
             elements.pronunciationBtn.style.display = 'none';
         }
+        
+        // 在移动端显示返回按钮
+        const backBtn = document.getElementById('back-to-word-list');
+        if (backBtn && window.innerWidth <= 768) {
+            backBtn.classList.remove('hidden');
+        } else if (backBtn) {
+            backBtn.classList.add('hidden');
+        }
+    }
+}
+
+// 更新设置面板内容
+function updateSettingsPanel() {
+    if (elements.minFrequencyInput) {
+        elements.minFrequencyInput.value = appState.settings.minFrequency;
+    }
+    
+    if (elements.beginnerLabelInput) {
+        elements.beginnerLabelInput.value = appState.settings.proficiencyLabels.beginner;
+    }
+    
+    if (elements.intermediateLabelInput) {
+        elements.intermediateLabelInput.value = appState.settings.proficiencyLabels.intermediate;
+    }
+    
+    if (elements.advancedLabelInput) {
+        elements.advancedLabelInput.value = appState.settings.proficiencyLabels.advanced;
+    }
+    
+    if (elements.dictionaryAPISelect) {
+        elements.dictionaryAPISelect.value = appState.settings.dictionaryAPI;
     }
 }
 
@@ -79,7 +140,13 @@ function renderWordList() {
             return freqB - freqA;
         });
         
-        sortedWords.forEach(word => {
+        // 过滤掉频率低于最小值的单词
+        const filteredWords = sortedWords.filter(word => {
+            const frequency = appState.wordFrequency[word] || 0;
+            return frequency >= appState.settings.minFrequency;
+        });
+        
+        filteredWords.forEach(word => {
             const wordItem = document.createElement('div');
             wordItem.className = 'word-item';
             if (word === appState.currentWord) {
@@ -89,6 +156,13 @@ function renderWordList() {
             const frequency = appState.wordFrequency[word] || 1;
             const proficiency = appState.wordProficiency[word] || 'unknown';
             
+            // 使用自定义标签
+            const proficiencyLabels = appState.settings.proficiencyLabels;
+            const proficiencyLabel = proficiency === 'beginner' ? proficiencyLabels.beginner :
+                                   proficiency === 'intermediate' ? proficiencyLabels.intermediate :
+                                   proficiency === 'advanced' ? proficiencyLabels.advanced : '未标记';
+            
+            wordItem.setAttribute('data-proficiency', proficiency);
             wordItem.innerHTML = `
                 <div class="word-info">
                     <span class="word-text">${word}</span>
@@ -97,9 +171,9 @@ function renderWordList() {
                 <div class="proficiency-container">
                     <select class="proficiency-select" data-word="${word}">
                         <option value="unknown" ${proficiency === 'unknown' ? 'selected' : ''}>未标记</option>
-                        <option value="beginner" ${proficiency === 'beginner' ? 'selected' : ''}>生词</option>
-                        <option value="intermediate" ${proficiency === 'intermediate' ? 'selected' : ''}>学习中</option>
-                        <option value="advanced" ${proficiency === 'advanced' ? 'selected' : ''}>已掌握</option>
+                        <option value="beginner" ${proficiency === 'beginner' ? 'selected' : ''}>${proficiencyLabels.beginner}</option>
+                        <option value="intermediate" ${proficiency === 'intermediate' ? 'selected' : ''}>${proficiencyLabels.intermediate}</option>
+                        <option value="advanced" ${proficiency === 'advanced' ? 'selected' : ''}>${proficiencyLabels.advanced}</option>
                     </select>
                 </div>
             `;
@@ -110,6 +184,19 @@ function renderWordList() {
                     return;
                 }
                 selectWord(word);
+                
+                // 在移动端隐藏单词列表面板，显示单词详情面板
+                if (window.innerWidth <= 768) {
+                    const wordListPanel = document.querySelector('.word-list-panel');
+                    const wordDetailPanel = document.querySelector('.word-detail-panel');
+                    const backBtn = document.getElementById('back-to-word-list');
+                    
+                    if (wordListPanel && wordDetailPanel && backBtn) {
+                        wordListPanel.classList.add('mobile-hidden');
+                        wordDetailPanel.classList.remove('mobile-hidden');
+                        backBtn.classList.remove('hidden');
+                    }
+                }
             });
             
             // 添加熟练度选择事件
@@ -141,6 +228,13 @@ function renderWordList() {
                 const proficiency = appState.wordProficiency[wordObj.word] || 'unknown';
                 const isDue = wordObj.isDue ? '（到期）' : '（紧急）';
                 
+                // 使用自定义标签
+                const proficiencyLabels = appState.settings.proficiencyLabels;
+                const proficiencyLabel = proficiency === 'beginner' ? proficiencyLabels.beginner :
+                                       proficiency === 'intermediate' ? proficiencyLabels.intermediate :
+                                       proficiency === 'advanced' ? proficiencyLabels.advanced : '未标记';
+                
+                wordItem.setAttribute('data-proficiency', proficiency);
                 wordItem.innerHTML = `
                     <div class="word-info">
                         <span class="word-text">${wordObj.word}</span>
@@ -149,9 +243,9 @@ function renderWordList() {
                     <div class="proficiency-container">
                         <select class="proficiency-select" data-word="${wordObj.word}">
                             <option value="unknown" ${proficiency === 'unknown' ? 'selected' : ''}>未标记</option>
-                            <option value="beginner" ${proficiency === 'beginner' ? 'selected' : ''}>生词</option>
-                            <option value="intermediate" ${proficiency === 'intermediate' ? 'selected' : ''}>学习中</option>
-                            <option value="advanced" ${proficiency === 'advanced' ? 'selected' : ''}>已掌握</option>
+                            <option value="beginner" ${proficiency === 'beginner' ? 'selected' : ''}>${proficiencyLabels.beginner}</option>
+                            <option value="intermediate" ${proficiency === 'intermediate' ? 'selected' : ''}>${proficiencyLabels.intermediate}</option>
+                            <option value="advanced" ${proficiency === 'advanced' ? 'selected' : ''}>${proficiencyLabels.advanced}</option>
                         </select>
                     </div>
                 `;
@@ -162,6 +256,19 @@ function renderWordList() {
                         return;
                     }
                     selectWord(wordObj.word);
+                    
+                    // 在移动端隐藏单词列表面板，显示单词详情面板
+                    if (window.innerWidth <= 768) {
+                        const wordListPanel = document.querySelector('.word-list-panel');
+                        const wordDetailPanel = document.querySelector('.word-detail-panel');
+                        const backBtn = document.getElementById('back-to-word-list');
+                        
+                        if (wordListPanel && wordDetailPanel && backBtn) {
+                            wordListPanel.classList.add('mobile-hidden');
+                            wordDetailPanel.classList.remove('mobile-hidden');
+                            backBtn.classList.remove('hidden');
+                        }
+                    }
                 });
                 
                 // 添加熟练度选择事件
@@ -267,11 +374,30 @@ function setWordProficiency(word, proficiency) {
     
     // 保存到LocalStorage
     if (appState.currentMovie) {
-        const savedData = localStorage.getItem(`linguasubs_${appState.currentMovie.id}`);
-        const movieData = savedData ? JSON.parse(savedData) : {};
-        movieData.wordProficiency = appState.wordProficiency;
-        localStorage.setItem(`linguasubs_${appState.currentMovie.id}`, JSON.stringify(movieData));
+        if (appState.currentMovie.isUserMedia) {
+            // 保存用户上传的媒体数据
+            const userMediaKey = `linguasubs_user_${appState.currentMovie.id}`;
+            const userData = JSON.parse(localStorage.getItem(userMediaKey)) || {};
+            userData.wordProficiency = appState.wordProficiency;
+            userData.progressData = appState.progressData;
+            localStorage.setItem(userMediaKey, JSON.stringify(userData));
+        } else {
+            // 保存示例电影数据
+            const savedData = localStorage.getItem(`linguasubs_${appState.currentMovie.id}`);
+            const movieData = savedData ? JSON.parse(savedData) : {};
+            movieData.wordProficiency = appState.wordProficiency;
+            localStorage.setItem(`linguasubs_${appState.currentMovie.id}`, JSON.stringify(movieData));
+        }
     }
+    
+    // 更新单词项的熟练度属性
+    const wordItems = document.querySelectorAll(`.proficiency-select[data-word="${word}"]`);
+    wordItems.forEach(select => {
+        const wordItem = select.closest('.word-item');
+        if (wordItem) {
+            wordItem.setAttribute('data-proficiency', proficiency);
+        }
+    });
     
     // 更新UI
     updateUI();
@@ -288,6 +414,48 @@ function toggleStudyMode(mode) {
             selectWord(reviewWords[0].word);
         }
     }
+}
+
+// 切换设置面板显示
+function toggleSettings(show) {
+    setState({ showSettings: show });
+}
+
+// 保存设置
+function saveSettings() {
+    const newSettings = {
+        minFrequency: parseInt(elements.minFrequencyInput.value) || 1,
+        proficiencyLabels: {
+            beginner: elements.beginnerLabelInput.value || '生词',
+            intermediate: elements.intermediateLabelInput.value || '学习中',
+            advanced: elements.advancedLabelInput.value || '已掌握'
+        },
+        dictionaryAPI: elements.dictionaryAPISelect.value || 'free-dictionary'
+    };
+    
+    setState({ settings: newSettings, showSettings: false });
+    
+    // 保存到LocalStorage
+    localStorage.setItem('linguasubs_settings', JSON.stringify(newSettings));
+    
+    // 重新渲染单词列表
+    renderWordList();
+}
+
+// 重置设置
+function resetSettings() {
+    const defaultSettings = {
+        minFrequency: 1,
+        proficiencyLabels: {
+            beginner: '生词',
+            intermediate: '学习中',
+            advanced: '已掌握'
+        },
+        dictionaryAPI: 'free-dictionary'
+    };
+    
+    setState({ settings: defaultSettings });
+    updateSettingsPanel();
 }
 
 // 新增：查找例句的函数

@@ -10,8 +10,25 @@
     <!-- 首页视图 -->
     <div id="home-view">
         <h1>LinguaSubs - 字幕词汇通</h1>
-        <div id="movie-list">
-            <!-- 电影卡片将在这里动态生成 -->
+        <div class="upload-section">
+            <h2>上传字幕文件</h2>
+            <div class="upload-container">
+                <input type="file" id="subtitle-upload" accept=".srt" />
+                <label for="subtitle-upload" class="upload-btn">📁 选择SRT字幕文件</label>
+                <div id="upload-status"></div>
+            </div>
+        </div>
+        <div class="library-section">
+            <h2>我的媒体库</h2>
+            <div id="user-library">
+                <!-- 用户媒体库将在这里动态生成 -->
+            </div>
+        </div>
+        <div class="sample-section">
+            <h2>示例影片</h2>
+            <div id="movie-list">
+                <!-- 电影卡片将在这里动态生成 -->
+            </div>
         </div>
     </div>
 
@@ -19,10 +36,21 @@
     <div id="study-view" class="hidden">
         <div class="study-header">
             <h1 id="movie-title">电影名称</h1>
-            <div class="mode-toggle">
-                <button id="browse-mode-btn" class="mode-btn active">浏览模式</button>
-                <button id="review-mode-btn" class="mode-btn">复习模式</button>
+            <div class="header-controls">
+                <div class="mode-toggle">
+                    <button id="browse-mode-btn" class="mode-btn active">浏览模式</button>
+                    <button id="review-mode-btn" class="mode-btn">复习模式</button>
+                </div>
+                <button id="export-btn" class="export-btn">📤 导出</button>
+                <button id="settings-btn" class="settings-btn">⚙️ 设置</button>
+                <button id="help-btn" class="help-btn">?</button>
             </div>
+        </div>
+        
+        <!-- 加载指示器 -->
+        <div id="loading-indicator" class="loading-indicator hidden">
+            <div class="spinner"></div>
+            <div class="loading-text">正在加载中...</div>
         </div>
         
         <div class="study-container">
@@ -42,6 +70,7 @@
                         <span id="phonetic"></span>
                         <button id="pronunciation-btn">🔊 发音</button>
                     </div>
+                    <button id="back-to-word-list" class="back-btn hidden">← 返回单词列表</button>
                     <div id="definition"></div>
                     <div id="example-sentence"></div>
                     <div class="feedback-buttons">
@@ -49,6 +78,57 @@
                         <button id="review-btn">需巩固</button>
                         <button id="known-btn">我认识</button>
                     </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 设置面板 -->
+        <div id="settings-panel" class="settings-panel hidden">
+            <div class="settings-content">
+                <div class="settings-header">
+                    <h2>设置</h2>
+                    <button id="close-settings-btn" class="close-btn">✕</button>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>词频过滤</h3>
+                    <div class="setting-item">
+                        <label for="min-frequency">最小出现次数:</label>
+                        <input type="number" id="min-frequency" min="1" value="1">
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>熟练度标签</h3>
+                    <div class="setting-item">
+                        <label for="beginner-label">生词标签:</label>
+                        <input type="text" id="beginner-label" value="生词">
+                    </div>
+                    <div class="setting-item">
+                        <label for="intermediate-label">学习中标签:</label>
+                        <input type="text" id="intermediate-label" value="学习中">
+                    </div>
+                    <div class="setting-item">
+                        <label for="advanced-label">已掌握标签:</label>
+                        <input type="text" id="advanced-label" value="已掌握">
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>词典设置</h3>
+                    <div class="setting-item">
+                        <label for="dictionary-api">词典API:</label>
+                        <select id="dictionary-api">
+                            <option value="free-dictionary">Free Dictionary API</option>
+                            <option value="oxford">Oxford Dictionary</option>
+                            <option value="cambridge">Cambridge Dictionary</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="settings-actions">
+                    <button id="save-settings-btn" class="save-btn">保存设置</button>
+                    <button id="reset-settings-btn" class="reset-btn">重置默认</button>
                 </div>
             </div>
         </div>
