@@ -321,22 +321,57 @@ function renderWordDetails() {
     elements.wordElement.textContent = wordData.word;
     elements.phoneticElement.textContent = wordData.phonetic || '';
     
-    // 显示发音按钮（如果有音频）
+    // 总是启用发音按钮，即使没有音频也允许点击（提供反馈）
+    elements.pronunciationBtn.disabled = false;
+    elements.pronunciationBtn.style.display = 'inline-block';
+    
     if (wordData.audio) {
-        elements.pronunciationBtn.style.display = 'inline-block';
+        elements.pronunciationBtn.title = "点击播放发音";
         elements.pronunciationBtn.onclick = () => {
-            const audio = new Audio(wordData.audio);
-            audio.play();
+            try {
+                const audio = new Audio(wordData.audio);
+                audio.play().catch(error => {
+                    console.error('播放音频时出错:', error);
+                    // 显示错误提示
+                    const originalText = elements.pronunciationBtn.textContent;
+                    elements.pronunciationBtn.textContent = "播放失败";
+                    setTimeout(() => {
+                        elements.pronunciationBtn.textContent = originalText;
+                    }, 2000);
+                });
+            } catch (error) {
+                console.error('创建音频对象时出错:', error);
+                // 显示错误提示
+                const originalText = elements.pronunciationBtn.textContent;
+                elements.pronunciationBtn.textContent = "播放失败";
+                setTimeout(() => {
+                    elements.pronunciationBtn.textContent = originalText;
+                }, 2000);
+            }
         };
     } else {
-        elements.pronunciationBtn.style.display = 'none';
+        elements.pronunciationBtn.title = "该单词暂无发音";
+        elements.pronunciationBtn.onclick = () => {
+            // 即使没有音频，也提供用户反馈
+            const originalText = elements.pronunciationBtn.textContent;
+            elements.pronunciationBtn.textContent = "无音频";
+            setTimeout(() => {
+                elements.pronunciationBtn.textContent = originalText;
+            }, 1000);
+        };
     }
     
-    // 渲染词性和释义
+    // 渲染词性和释义（添加中文翻译）
     let definitionHTML = '';
     if (wordData.meanings && wordData.meanings.length > 0) {
         wordData.meanings.forEach(meaning => {
-            definitionHTML += `<p><strong>${meaning.partOfSpeech || '释义'}</strong>: ${meaning.definitions.join('; ')}</p>`;
+            // 添加中文翻译（如果可用）
+            let translation = '';
+            if (meaning.chineseTranslation) {
+                translation = `<br><span class="chinese-translation">中文释义: ${meaning.chineseTranslation}</span>`;
+            }
+            
+            definitionHTML += `<p><strong>${meaning.partOfSpeech || '释义'}</strong>: ${meaning.definitions.join('; ')}${translation}</p>`;
         });
     } else {
         definitionHTML = '<p>暂无释义信息。</p>';
@@ -352,27 +387,38 @@ function renderWordDetails() {
 
 // 选择单词
 async function selectWord(word) {
-    // 更新当前单词
-    setState({ 
-        currentWord: word,
-        currentWordDetails: null
-    });
+    // 检查单词是否已在缓存中
+    const cachedWordDetails = wordDetailsCache.get(word);
     
-    // 获取单词详细信息
-    const wordDetails = await getWordDetails(word);
-    
-    if (wordDetails) {
+    if (cachedWordDetails) {
+        // 如果单词详情已在缓存中，直接显示，无需加载状态
         setState({ 
-            currentWordDetails: wordDetails
+            currentWord: word,
+            currentWordDetails: cachedWordDetails
         });
     } else {
+        // 如果单词详情不在缓存中，先显示加载状态
         setState({ 
-            currentWordDetails: {
-                word: word,
-                phonetic: '',
-                meanings: [{ partOfSpeech: '信息', definitions: ['未找到该单词的详细信息。', '这可能是一个专有名词或拼写错误。'] }]
-            }
+            currentWord: word,
+            currentWordDetails: null
         });
+        
+        // 获取单词详细信息
+        const wordDetails = await getWordDetails(word);
+        
+        if (wordDetails) {
+            setState({ 
+                currentWordDetails: wordDetails
+            });
+        } else {
+            setState({ 
+                currentWordDetails: {
+                    word: word,
+                    phonetic: '',
+                    meanings: [{ partOfSpeech: '信息', definitions: ['未找到该单词的详细信息。', '这可能是一个专有名词或拼写错误。'] }]
+                }
+            });
+        }
     }
 }
 

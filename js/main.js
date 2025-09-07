@@ -1,7 +1,7 @@
 // 在文件顶部添加导入语句
 import { getMovies, getMovieById, getUserProgress, saveUserProgress, saveWordProficiency, getMovieStats } from './dataService.js';
 import { initRouter, navigateTo } from './router.js';
-import { prefetchWordDetails } from './api.js';
+import { prefetchWordDetails, getWordDetails, wordDetailsCache } from './api.js';
 import { showGlobalLoading, hideGlobalLoading } from './loadingManager.js';
 import { setState, elements, initializeElements, toggleStudyMode, toggleSettings, saveSettings, resetSettings, selectWord, setWordProficiency, renderWordList, renderWordDetails, appState } from './stateManager.js'; // 导入appState
 import { movies } from './data.js'; // 导入本地电影数据
@@ -9,8 +9,57 @@ import { calculateNextReview, getNextWord } from './srs.js';
 import { parseSRT, extractWords } from './utils.js';
 import { uploadFile, createMovie } from './dataService.js';
 
+// 用户ID管理
+let userId = null;
+
+// 生成或获取用户ID
+function getUserId() {
+    if (userId) return userId;
+    
+    // 尝试从localStorage获取现有的用户ID
+    userId = localStorage.getItem('linguasubs_userId');
+    
+    // 如果没有现有的用户ID，则生成一个新的
+    if (!userId) {
+        userId = generateUserId();
+        localStorage.setItem('linguasubs_userId', userId);
+    }
+    
+    return userId;
+}
+
+// 生成用户ID（基于时间戳和随机数）
+function generateUserId() {
+    return 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+// 显示用户ID
+function displayUserId() {
+    const userIdDisplay = document.getElementById('user-id-display');
+    if (userIdDisplay) {
+        userIdDisplay.textContent = `用户ID: ${getUserId().substring(0, 12)}...`;
+        // 添加复制功能
+        userIdDisplay.style.cursor = 'pointer';
+        userIdDisplay.title = '点击复制用户ID';
+        userIdDisplay.addEventListener('click', () => {
+            navigator.clipboard.writeText(getUserId()).then(() => {
+                // 显示复制成功的提示
+                const originalText = userIdDisplay.textContent;
+                userIdDisplay.textContent = '已复制!';
+                setTimeout(() => {
+                    userIdDisplay.textContent = originalText;
+                }, 2000);
+            });
+        });
+    }
+}
+
 // DOM加载完成后执行
 document.addEventListener('DOMContentLoaded', function() {
+    // 初始化用户ID
+    getUserId();
+    displayUserId();
+    
     // 初始化元素引用
     initializeElements();
     
@@ -52,6 +101,22 @@ document.addEventListener('DOMContentLoaded', function() {
     if (elements.saveSettingsBtn) elements.saveSettingsBtn.addEventListener('click', saveSettings);
     if (elements.resetSettingsBtn) elements.resetSettingsBtn.addEventListener('click', resetSettings);
     
+    // 添加清除缓存按钮事件
+    const clearCacheBtn = document.getElementById('clear-cache-btn');
+    if (clearCacheBtn) {
+        clearCacheBtn.addEventListener('click', () => {
+            // 导入清除缓存函数
+            import('./api.js').then(({ clearWordDetailsCache }) => {
+                clearWordDetailsCache();
+                showMessage('缓存已清除', 'success');
+            }).catch(error => {
+                console.error('清除缓存时出错:', error);
+                showMessage('清除缓存失败', 'error');
+            });
+        });
+        clearCacheBtn.addEventListener('keydown', handleButtonKeyDown);
+    }
+    
     // 为设置面板按钮添加键盘支持
     if (elements.settingsBtn) elements.settingsBtn.addEventListener('keydown', handleButtonKeyDown);
     if (elements.closeSettingsBtn) elements.closeSettingsBtn.addEventListener('keydown', handleButtonKeyDown);
@@ -63,22 +128,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (exportBtn) {
         exportBtn.addEventListener('click', exportWordList);
         exportBtn.addEventListener('keydown', handleButtonKeyDown);
-    }
-    
-    // 绑定返回按钮事件
-    const backBtn = document.getElementById('back-to-word-list');
-    if (backBtn) {
-        backBtn.addEventListener('click', () => {
-            // 在移动端隐藏单词详情面板，显示单词列表面板
-            const wordListPanel = document.querySelector('.word-list-panel');
-            const wordDetailPanel = document.querySelector('.word-detail-panel');
-            
-            if (wordListPanel && wordDetailPanel) {
-                wordListPanel.classList.remove('mobile-hidden');
-                wordDetailPanel.classList.add('mobile-hidden');
-            }
-        });
-        backBtn.addEventListener('keydown', handleButtonKeyDown);
     }
     
     // 绑定返回首页按钮事件
@@ -405,6 +454,22 @@ function renderUserLibrary() {
     // 按上传日期排序（最新的在前）
     userMediaItems.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
     
+    // 调整示例文件模块的位置
+    const sampleSection = document.querySelector('.sample-section');
+    const librarySection = document.querySelector('.library-section');
+    
+    if (userMediaItems.length === 0) {
+        // 如果没有用户上传的文件，示例模块在最上面
+        if (sampleSection && librarySection) {
+            librarySection.parentNode.insertBefore(sampleSection, librarySection);
+        }
+    } else {
+        // 如果有用户上传的文件，示例模块在中间
+        if (sampleSection && librarySection) {
+            librarySection.parentNode.insertBefore(sampleSection, librarySection.nextSibling);
+        }
+    }
+    
     if (userMediaItems.length === 0) {
         userLibraryContainer.innerHTML = '<div style="color: rgba(255, 255, 255, 0.7); text-align: center; padding: 20px;">暂无上传的媒体文件</div>';
         return;
@@ -704,31 +769,42 @@ async function showNextWord() {
         return;
     }
     
-    // 显示加载状态
-    setState({ 
-        currentWord: nextWord,
-        currentWordDetails: null
-    });
+    // 检查单词是否已在缓存中
+    const cachedWordDetails = wordDetailsCache.get(nextWord);
     
-    // 获取单词详细信息
-    const wordDetails = await getWordDetails(nextWord);
-    
-    if (wordDetails) {
-        // 更新状态以显示单词卡片
+    if (cachedWordDetails) {
+        // 如果单词详情已在缓存中，直接显示，无需加载状态
         setState({ 
             currentWord: nextWord,
-            currentWordDetails: wordDetails
+            currentWordDetails: cachedWordDetails
         });
     } else {
-        // 如果API未找到单词，显示基本单词信息
+        // 如果单词详情不在缓存中，先显示加载状态
         setState({ 
             currentWord: nextWord,
-            currentWordDetails: {
-                word: nextWord,
-                phonetic: '',
-                meanings: [{ partOfSpeech: '信息', definitions: ['未找到该单词的详细信息。', '这可能是一个专有名词或拼写错误。'] }]
-            }
+            currentWordDetails: null
         });
+        
+        // 获取单词详细信息
+        const wordDetails = await getWordDetails(nextWord);
+        
+        if (wordDetails) {
+            // 更新状态以显示单词卡片
+            setState({ 
+                currentWord: nextWord,
+                currentWordDetails: wordDetails
+            });
+        } else {
+            // 如果API未找到单词，显示基本单词信息
+            setState({ 
+                currentWord: nextWord,
+                currentWordDetails: {
+                    word: nextWord,
+                    phonetic: '',
+                    meanings: [{ partOfSpeech: '信息', definitions: ['未找到该单词的详细信息。', '这可能是一个专有名词或拼写错误。'] }]
+                }
+            });
+        }
     }
 }
 
@@ -775,10 +851,24 @@ function hideLoadingIndicator() {
 
 // 显示消息提示
 function showMessage(message, type = 'info') {
+    // 检查是否已存在相同的消息提示
+    const existingToast = document.querySelector(`.message-toast.${type}[data-message="${message}"]`);
+    if (existingToast) {
+        // 如果已存在相同消息，重置计时器
+        clearTimeout(existingToast.timeoutId);
+        existingToast.timeoutId = setTimeout(() => {
+            if (existingToast.parentNode) {
+                existingToast.parentNode.removeChild(existingToast);
+            }
+        }, 3000);
+        return;
+    }
+    
     // 创建消息元素
     const messageElement = document.createElement('div');
     messageElement.className = `message-toast ${type}`;
     messageElement.textContent = message;
+    messageElement.setAttribute('data-message', message);
     
     // 添加样式
     messageElement.style.position = 'fixed';
@@ -791,6 +881,7 @@ function showMessage(message, type = 'info') {
     messageElement.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
     messageElement.style.zIndex = '3000';
     messageElement.style.maxWidth = '300px';
+    messageElement.style.wordWrap = 'break-word';
     
     // 根据类型设置背景色
     switch (type) {
@@ -811,7 +902,7 @@ function showMessage(message, type = 'info') {
     document.body.appendChild(messageElement);
     
     // 3秒后自动移除
-    setTimeout(() => {
+    messageElement.timeoutId = setTimeout(() => {
         if (messageElement.parentNode) {
             messageElement.parentNode.removeChild(messageElement);
         }
@@ -820,10 +911,10 @@ function showMessage(message, type = 'info') {
 
 // 实现 API 预取 (Pre-fetching) 提升流畅度
 function prefetchWords(words, progress) {
-    // 找到接下来 5 个最可能学习的单词
+    // 找到接下来 10 个最可能学习的单词（增加预取数量）
     const wordsToPrefetch = [];
     let tempProgress = JSON.parse(JSON.stringify(progress)); // 深拷贝进度，避免影响主逻辑
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 10; i++) { // 从5增加到10
         const nextWord = getNextWord(words, tempProgress);
         if (nextWord) {
             wordsToPrefetch.push(nextWord);

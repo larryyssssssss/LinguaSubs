@@ -14,6 +14,17 @@ body {
     padding: 20px;
 }
 
+.user-info {
+    text-align: right;
+    margin-bottom: 10px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.9em;
+}
+
+.user-info:hover {
+    color: white;
+}
+
 /* 可访问性优化：焦点可见性 */
 :focus {
     outline: 2px solid #3498db;
@@ -257,12 +268,38 @@ body {
     gap: 10px;
 }
 
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
 .study-header h1 {
     color: white;
     font-size: 2.5rem;
     margin: 0;
     font-weight: 800;
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.home-nav-btn {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 1.5em;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    transform: translateY(0);
+    margin-right: 20px;
+}
+
+.home-nav-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
 }
 
 .header-controls {
@@ -572,12 +609,32 @@ body {
     font-size: 1em;
     transition: all 0.3s ease;
     box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    margin-left: 10px;
 }
 
 #pronunciation-btn:hover {
     background: #2980b9;
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+}
+
+#pronunciation-btn:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+#pronunciation-btn:active {
+    transform: translateY(0);
+}
+
+/* 添加中文翻译样式 */
+.chinese-translation {
+    color: #27ae60;
+    font-weight: bold;
+    display: block;
+    margin-top: 5px;
 }
 
 #definition {

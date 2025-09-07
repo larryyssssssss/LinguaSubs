@@ -43,13 +43,18 @@ class LRUCache {
     size() {
         return this.cache.size;
     }
+    
+    // 添加删除特定项的方法
+    delete(key) {
+        return this.cache.delete(key);
+    }
 }
 
 // 创建全局单词详情缓存实例
 const wordDetailsCache = new LRUCache(200);
 
 /**
- * 从词典API获取单词详细信息
+ * 从词典API获取单词详细信息（包含中文翻译）
  * @param {string} word - 要查询的单词
  * @returns {Promise<Object|null>} - 包含单词信息的对象或null（如果未找到）
  */
@@ -62,16 +67,83 @@ async function getWordDetails(word) {
     }
     
     try {
+        // 首先尝试从主要词典API获取基本信息
+        let wordData = await fetchFromPrimaryDictionary(word);
+        
+        // 如果主要API没有找到，尝试备用API
+        if (!wordData) {
+            wordData = await fetchFromBackupDictionary(word);
+        }
+        
+        // 如果仍然没有找到，创建基本的单词信息
+        if (!wordData) {
+            wordData = {
+                word: word,
+                phonetic: '',
+                audio: '',
+                meanings: [{
+                    partOfSpeech: 'unknown',
+                    definitions: [`单词"${word}"的详细信息暂未找到。`]
+                }]
+            };
+        }
+        
+        // 尝试获取中文翻译
+        try {
+            const translationResponse = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|zh`);
+            if (translationResponse.ok) {
+                const translationData = await translationResponse.json();
+                if (translationData && translationData.responseData && translationData.responseData.translatedText) {
+                    // 将中文翻译添加到第一个释义中
+                    if (wordData.meanings.length > 0) {
+                        wordData.meanings[0].chineseTranslation = translationData.responseData.translatedText;
+                    }
+                }
+            }
+        } catch (translationError) {
+            console.warn(`获取单词"${word}"的中文翻译时出错:`, translationError);
+            // 不影响主功能，继续使用英文释义
+        }
+        
+        // 将结果存入缓存
+        wordDetailsCache.set(word, wordData);
+        
+        return wordData;
+    } catch (error) {
+        console.error(`获取单词"${word}"信息时出错:`, error);
+        // 返回基本单词信息而不是null
+        const wordData = {
+            word: word,
+            phonetic: '',
+            audio: '',
+            meanings: [{
+                partOfSpeech: 'error',
+                definitions: [`查询单词"${word}"时发生错误: ${error.message}`]
+            }]
+        };
+        
+        // 将结果存入缓存
+        wordDetailsCache.set(word, wordData);
+        
+        return wordData;
+    }
+}
+
+/**
+ * 从主要词典API获取单词信息
+ * @param {string} word - 要查询的单词
+ * @returns {Promise<Object|null>} - 包含单词信息的对象或null
+ */
+async function fetchFromPrimaryDictionary(word) {
+    try {
         const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
         
         if (!response.ok) {
             if (response.status === 404) {
-                console.log(`未找到单词: ${word}`);
-                // 缓存未找到的结果，避免重复请求
-                wordDetailsCache.set(word, null);
+                console.log(`主要词典API未找到单词: ${word}`);
                 return null;
             }
-            throw new Error(`API请求失败: ${response.status}`);
+            throw new Error(`主要词典API请求失败: ${response.status}`);
         }
         
         const data = await response.json();
@@ -111,18 +183,42 @@ async function getWordDetails(word) {
                 }));
             }
             
-            // 将结果存入缓存
-            wordDetailsCache.set(word, wordData);
-            
             return wordData;
         }
         
-        // 缓存空结果
-        wordDetailsCache.set(word, null);
         return null;
     } catch (error) {
-        console.error(`获取单词"${word}"信息时出错:`, error);
-        // 不缓存错误结果，允许重试
+        console.error(`从主要词典API获取单词"${word}"时出错:`, error);
+        return null;
+    }
+}
+
+/**
+ * 从备用词典API获取单词信息
+ * @param {string} word - 要查询的单词
+ * @returns {Promise<Object|null>} - 包含单词信息的对象或null
+ */
+async function fetchFromBackupDictionary(word) {
+    try {
+        // 使用备用API - Merriam-Webster Collegiate Dictionary API
+        // 注意：这需要API密钥，这里只是一个示例
+        // const response = await fetch(`https://www.dictionaryapi.com/api/v3/references/collegiate/json/${word}?key=YOUR_API_KEY`);
+        
+        // 作为示例，我们创建一个简单的备用响应
+        console.log(`尝试从备用词典获取单词: ${word}`);
+        
+        // 返回一个基本的单词信息结构
+        return {
+            word: word,
+            phonetic: '',
+            audio: '',
+            meanings: [{
+                partOfSpeech: 'unknown',
+                definitions: [`单词"${word}"在主要词典中未找到，这是备用信息。`]
+            }]
+        };
+    } catch (error) {
+        console.error(`从备用词典API获取单词"${word}"时出错:`, error);
         return null;
     }
 }
@@ -172,5 +268,19 @@ async function prefetchWordDetails(words, maxConcurrent = 3) {
     console.log(`预取完成，缓存大小: ${wordDetailsCache.size()}`);
 }
 
+/**
+ * 清除单词详情缓存
+ * @param {string} word - 要清除的单词，如果不提供则清除所有缓存
+ */
+function clearWordDetailsCache(word) {
+    if (word) {
+        wordDetailsCache.delete(word);
+        console.log(`已清除单词"${word}"的缓存`);
+    } else {
+        wordDetailsCache.clear();
+        console.log('已清除所有单词详情缓存');
+    }
+}
+
 // 导出函数
-export { getWordDetails, prefetchWordDetails, wordDetailsCache };
+export { getWordDetails, prefetchWordDetails, wordDetailsCache, clearWordDetailsCache };

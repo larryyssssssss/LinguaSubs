@@ -9,6 +9,9 @@
 <body>
     <!-- 首页视图 -->
     <div id="home-view" role="main">
+        <div class="user-info">
+            <span id="user-id-display">用户ID: </span>
+        </div>
         <h1>LinguaSubs - 字幕词汇通</h1>
         <div class="sample-section">
             <h2>示例影片</h2>
@@ -36,7 +39,10 @@
     <!-- 学习视图 -->
     <div id="study-view" class="hidden" role="main">
         <div class="study-header">
-            <h1 id="movie-title">电影名称</h1>
+            <div class="header-left">
+                <button id="back-to-home" class="nav-btn home-nav-btn" aria-label="返回首页">🏠 返回首页</button>
+                <h1 id="movie-title">电影名称</h1>
+            </div>
             <div class="header-controls">
                 <div class="mode-toggle" role="radiogroup" aria-label="学习模式">
                     <button id="browse-mode-btn" class="mode-btn active" role="radio" aria-checked="true" tabindex="0">浏览模式</button>
@@ -127,6 +133,7 @@
                 <div class="settings-actions">
                     <button id="save-settings-btn" class="save-btn" aria-label="保存设置">保存设置</button>
                     <button id="reset-settings-btn" class="reset-btn" aria-label="重置默认">重置默认</button>
+                    <button id="clear-cache-btn" class="reset-btn" aria-label="清除缓存">清除缓存</button>
                 </div>
             </div>
         </div>
