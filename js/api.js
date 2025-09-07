@@ -4,6 +4,12 @@
  * @returns {Promise<Object|null>} - 包含单词信息的对象或null（如果未找到）
  */
 async function getWordDetails(word) {
+    // 检查缓存中是否已存在该单词的详细信息
+    if (appState.wordDetailsCache[word]) {
+        console.log(`从缓存中获取单词: ${word}`);
+        return appState.wordDetailsCache[word];
+    }
+    
     try {
         const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
         
@@ -51,6 +57,9 @@ async function getWordDetails(word) {
                     definitions: meaning.definitions ? meaning.definitions.slice(0, 3).map(def => def.definition) : ['暂无释义']
                 }));
             }
+            
+            // 将结果存入缓存
+            appState.wordDetailsCache[word] = wordData;
             
             return wordData;
         }
