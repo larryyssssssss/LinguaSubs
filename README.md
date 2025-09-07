@@ -31,6 +31,8 @@ LinguaSubs/
 │   ├── api.js           # 词典API集成
 │   └── srs.js           # 间隔重复算法
 ├── assets/              # 影片资源（封面图、字幕文件）
+├── data/                # 字幕文件
+├── deploy.sh            # 部署脚本
 └── README.md            # 项目说明文档
 ```
 
@@ -64,9 +66,28 @@ LinguaSubs/
    ```
 3. 在浏览器中访问 `http://localhost:8080`
 
-## 部署
+## 部署到GitHub Pages
 
-本项目可直接部署到任何静态网站托管服务，如 GitHub Pages、Vercel、Netlify等。
+1. 在GitHub上创建一个新的仓库
+2. 将本地代码推送到GitHub：
+   ```bash
+   git remote add origin https://github.com/您的用户名/仓库名.git
+   git branch -M main
+   git push -u origin main
+   ```
+3. 在GitHub仓库设置中，找到"Pages"选项
+4. 选择源分支为`main`，目录为`/ (root)`
+5. 保存设置，GitHub Pages将会自动部署应用
+
+## 使用部署脚本
+
+项目包含一个简单的部署脚本，可以方便地提交和推送更改：
+
+```bash
+./deploy.sh
+```
+
+运行脚本后，输入提交信息即可完成部署。
 
 ## 开发指南
 
