@@ -313,6 +313,142 @@ async function createMovie(movieData) {
     }
 }
 
+/**
+ * 删除电影记录
+ * @param {string} movieId 电影ID
+ * @returns {Promise<boolean>} 删除是否成功
+ */
+async function deleteMovie(movieId) {
+    if (!isSupabaseAvailable()) {
+        console.warn('Supabase不可用，无法删除电影记录');
+        return false;
+    }
+
+    try {
+        const { error } = await supabase
+            .from(supabaseConfig.tables.movies)
+            .delete()
+            .eq('id', movieId);
+
+        if (error) {
+            console.error('删除电影记录失败:', error);
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error('删除电影记录时发生异常:', error);
+        return false;
+    }
+}
+
+/**
+ * 获取用户上传的媒体列表
+ * @returns {Promise<Array>} 用户媒体列表
+ */
+async function getUserMediaList() {
+    if (!isSupabaseAvailable()) {
+        console.warn('Supabase不可用，返回空用户媒体列表');
+        return [];
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from(supabaseConfig.tables.movies)
+            .select('*')
+            .not('user_id', 'is', null)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('获取用户媒体列表失败:', error);
+            return [];
+        }
+
+        return data || [];
+    } catch (error) {
+        console.error('获取用户媒体列表时发生异常:', error);
+        return [];
+    }
+}
+
+/**
+ * 保存用户媒体数据
+ * @param {Object} mediaData 媒体数据
+ * @returns {Promise<Object|null>} 保存的媒体记录或null
+ */
+async function saveUserMedia(mediaData) {
+    if (!isSupabaseAvailable()) {
+        console.warn('Supabase不可用，无法保存用户媒体数据');
+        return null;
+    }
+
+    try {
+        // 获取当前用户ID
+        const userId = localStorage.getItem('linguasubs_userId');
+        if (!userId) {
+            return null;
+        }
+
+        // 准备数据
+        const mediaRecord = {
+            ...mediaData,
+            user_id: userId
+        };
+
+        const { data, error } = await supabase
+            .from(supabaseConfig.tables.movies)
+            .upsert(mediaRecord)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('保存用户媒体数据失败:', error);
+            return null;
+        }
+
+        return data || null;
+    } catch (error) {
+        console.error('保存用户媒体数据时发生异常:', error);
+        return null;
+    }
+}
+
+/**
+ * 删除用户媒体
+ * @param {string} mediaId 媒体ID
+ * @returns {Promise<boolean>} 删除是否成功
+ */
+async function deleteUserMedia(mediaId) {
+    if (!isSupabaseAvailable()) {
+        console.warn('Supabase不可用，无法删除用户媒体');
+        return false;
+    }
+
+    try {
+        // 获取当前用户ID
+        const userId = localStorage.getItem('linguasubs_userId');
+        if (!userId) {
+            return false;
+        }
+
+        const { error } = await supabase
+            .from(supabaseConfig.tables.movies)
+            .delete()
+            .eq('id', mediaId)
+            .eq('user_id', userId);
+
+        if (error) {
+            console.error('删除用户媒体失败:', error);
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error('删除用户媒体时发生异常:', error);
+        return false;
+    }
+}
+
 // 导出所有函数
 export {
     getMovies,
@@ -322,5 +458,7 @@ export {
     saveWordProficiency,
     uploadFile,
     getMovieStats,
-    createMovie
+    createMovie,
+    getUserMediaList,
+    deleteMovie
 };

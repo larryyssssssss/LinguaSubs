@@ -1,16 +1,19 @@
 -- 电影/字幕信息表
 CREATE TABLE movies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID, -- 添加用户ID字段，用于关联用户上传的媒体
   title TEXT NOT NULL,
   poster_url TEXT,
   subtitle_url TEXT, -- 在 Storage 中的路径
   word_count INT DEFAULT 0, -- 词汇总数
+  word_list JSONB, -- 词汇列表，用于服务端缓存
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- 用户学习进度表
 CREATE TABLE user_progress (
   id BIGSERIAL PRIMARY KEY,
+  user_id UUID, -- 添加用户ID字段
   movie_id UUID REFERENCES movies(id) ON DELETE CASCADE,
   word TEXT NOT NULL,
   review_count INT DEFAULT 0,
@@ -35,3 +38,8 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_user_progress_updated_at BEFORE UPDATE
 ON user_progress FOR EACH ROW
 EXECUTE PROCEDURE update_updated_at_column();
+
+-- 添加索引以提高查询性能
+CREATE INDEX idx_movies_user_id ON movies(user_id);
+CREATE INDEX idx_user_progress_user_id ON user_progress(user_id);
+CREATE INDEX idx_user_progress_movie_id ON user_progress(movie_id);

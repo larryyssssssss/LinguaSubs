@@ -7,8 +7,10 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <a href="#main-content" class="skip-link">跳转到主内容</a>
+    
     <!-- 首页视图 -->
-    <div id="home-view" role="main">
+    <div id="home-view" role="main" tabindex="-1">
         <div class="user-info">
             <span id="user-id-display">用户ID: </span>
         </div>
@@ -37,7 +39,7 @@
     </div>
 
     <!-- 学习视图 -->
-    <div id="study-view" class="hidden" role="main">
+    <div id="study-view" class="hidden" role="main" tabindex="-1">
         <div class="study-header">
             <div class="header-left">
                 <button id="back-to-home" class="nav-btn home-nav-btn" aria-label="返回首页">🏠 返回首页</button>
@@ -54,7 +56,7 @@
             </div>
         </div>
         
-        <div class="study-container">
+        <div class="study-container" id="main-content">
             <!-- 左侧：单词列表 -->
             <div class="word-list-panel" role="region" aria-label="词汇列表">
                 <h2>词汇列表</h2>
@@ -75,8 +77,16 @@
                         <button id="back-to-home" class="nav-btn" aria-label="返回首页">🏠 返回首页</button>
                         <button id="back-to-word-list" class="back-btn hidden" aria-label="返回单词列表">← 返回单词列表</button>
                     </div>
-                    <div id="definition" aria-label="单词释义"></div>
-                    <div id="example-sentence" aria-label="例句"></div>
+                    <!-- 进度指示器 -->
+                    <div id="study-progress" class="study-progress hidden">
+                        <span id="current-card">0</span> / <span id="total-cards">0</span>
+                    </div>
+                    <!-- 翻面按钮 -->
+                    <div id="flip-container" class="flip-container hidden">
+                        <button id="flip-btn" class="flip-btn">翻面查看释义</button>
+                    </div>
+                    <div id="definition" class="definition" aria-label="单词释义"></div>
+                    <div id="example-sentence" class="example-sentence" aria-label="例句"></div>
                     <div class="feedback-buttons" role="group" aria-label="学习反馈">
                         <button id="forgot-btn" aria-label="忘记了">忘记了</button>
                         <button id="review-btn" aria-label="需巩固">需巩固</button>
@@ -206,6 +216,21 @@
                     <button id="submit-upload" class="submit-btn" aria-label="上传">上传</button>
                     <button id="cancel-upload" class="cancel-btn" aria-label="取消">取消</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 单词详情浮层 -->
+    <div id="word-popover" class="word-popover hidden" role="dialog" aria-labelledby="popover-word" aria-modal="true">
+        <div class="popover-content">
+            <div class="popover-header">
+                <h3 id="popover-word" class="popover-word"></h3>
+                <button id="close-popover" class="close-popover" aria-label="关闭">×</button>
+            </div>
+            <div class="popover-body">
+                <div id="popover-phonetic" class="popover-phonetic"></div>
+                <div id="popover-definition" class="popover-definition"></div>
+                <div id="popover-example" class="popover-example"></div>
             </div>
         </div>
     </div>

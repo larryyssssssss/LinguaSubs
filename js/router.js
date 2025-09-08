@@ -3,7 +3,7 @@
  * 基于window.location.hash实现简单的前端路由
  */
 
-import { loadMovieData } from './main.js';
+import { loadMovieData, loadUserMediaData } from './main.js';
 import { setState } from './stateManager.js';
 import { getMovieById } from './dataService.js';
 
@@ -66,13 +66,19 @@ async function handleRouteChange() {
                 // 从Supabase获取电影信息
                 const movie = await getMovieById(params.movieId);
                 if (movie) {
-                    // 加载电影数据
-                    loadMovieData({
-                        id: movie.id,
-                        title: movie.title,
-                        posterUrl: movie.cover_url,
-                        srtPath: movie.subtitle_url
-                    });
+                    // 检查是否为用户上传的媒体
+                    if (movie.user_id) {
+                        // 加载用户媒体数据
+                        loadUserMediaData(movie);
+                    } else {
+                        // 加载电影数据
+                        loadMovieData({
+                            id: movie.id,
+                            title: movie.title,
+                            posterUrl: movie.cover_url,
+                            srtPath: movie.subtitle_url
+                        });
+                    }
                 } else {
                     // 如果找不到电影，返回首页
                     console.warn('未找到指定的电影:', params.movieId);

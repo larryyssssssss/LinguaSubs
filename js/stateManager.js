@@ -98,6 +98,10 @@ function updateUI() {
             elements.definitionElement.innerHTML = '';
             elements.exampleSentenceElement.innerHTML = '';
             elements.pronunciationBtn.style.display = 'none';
+            
+            // 更新进度指示器
+            updateStudyProgress();
+            updateFlipButton();
         }
         
         // 在移动端显示返回按钮
@@ -133,6 +137,58 @@ function updateSettingsPanel() {
     }
 }
 
+// 更新进度指示器
+function updateStudyProgress() {
+    const progressElement = document.getElementById('study-progress');
+    const currentCardElement = document.getElementById('current-card');
+    const totalCardsElement = document.getElementById('total-cards');
+    
+    if (progressElement && currentCardElement && totalCardsElement) {
+        // 计算当前卡片索引和总卡片数
+        const currentIndex = appState.allWords.indexOf(appState.currentWord) + 1;
+        const totalCards = appState.allWords.length;
+        
+        // 更新显示
+        currentCardElement.textContent = currentIndex;
+        totalCardsElement.textContent = totalCards;
+        
+        // 控制进度指示器显示/隐藏
+        if (totalCards > 0) {
+            progressElement.classList.remove('hidden');
+        } else {
+            progressElement.classList.add('hidden');
+        }
+    }
+}
+
+// 控制翻面按钮显示
+function updateFlipButton() {
+    const flipContainer = document.getElementById('flip-container');
+    const flipBtn = document.getElementById('flip-btn');
+    const definitionElement = document.getElementById('definition');
+    const exampleElement = document.getElementById('example-sentence');
+    
+    if (flipContainer && flipBtn && definitionElement && exampleElement) {
+        // 只在有单词详情时显示翻面按钮
+        if (appState.currentWordDetails) {
+            flipContainer.classList.remove('hidden');
+            
+            // 添加翻面按钮事件
+            flipBtn.onclick = function() {
+                // 切换释义和例句的显示状态
+                const isDefinitionVisible = !definitionElement.classList.contains('hidden');
+                definitionElement.classList.toggle('hidden', isDefinitionVisible);
+                exampleElement.classList.toggle('hidden', isDefinitionVisible);
+                
+                // 更新按钮文本
+                flipBtn.textContent = isDefinitionVisible ? '翻面查看单词' : '翻面查看释义';
+            };
+        } else {
+            flipContainer.classList.add('hidden');
+        }
+    }
+}
+
 // 渲染单词列表
 function renderWordList() {
     if (!elements.wordListContainer) return;
@@ -157,8 +213,13 @@ function renderWordList() {
         filteredWords.forEach(word => {
             const wordItem = document.createElement('div');
             wordItem.className = 'word-item';
+            wordItem.setAttribute('role', 'listitem');
+            wordItem.setAttribute('tabindex', '0');
             if (word === appState.currentWord) {
                 wordItem.classList.add('active');
+                wordItem.setAttribute('aria-selected', 'true');
+            } else {
+                wordItem.setAttribute('aria-selected', 'false');
             }
             
             const frequency = appState.wordFrequency[word] || 1;
@@ -171,13 +232,14 @@ function renderWordList() {
                                    proficiency === 'advanced' ? proficiencyLabels.advanced : '未标记';
             
             wordItem.setAttribute('data-proficiency', proficiency);
+            wordItem.setAttribute('aria-label', `${word}，频率：${frequency}，熟练度：${proficiencyLabel}`);
             wordItem.innerHTML = `
                 <div class="word-info">
-                    <span class="word-text">${word}</span>
-                    <span class="word-frequency">${frequency}</span>
+                    <span class="word-text" role="button" tabindex="0" aria-label="点击查看${word}的详细信息">${word}</span>
+                    <span class="word-frequency" aria-label="出现频率">${frequency}</span>
                 </div>
                 <div class="proficiency-container">
-                    <select class="proficiency-select" data-word="${word}">
+                    <select class="proficiency-select" data-word="${word}" aria-label="设置${word}的熟练度">
                         <option value="unknown" ${proficiency === 'unknown' ? 'selected' : ''}>未标记</option>
                         <option value="beginner" ${proficiency === 'beginner' ? 'selected' : ''}>${proficiencyLabels.beginner}</option>
                         <option value="intermediate" ${proficiency === 'intermediate' ? 'selected' : ''}>${proficiencyLabels.intermediate}</option>
@@ -191,19 +253,35 @@ function renderWordList() {
                 if (e.target.classList.contains('proficiency-select')) {
                     return;
                 }
-                selectWord(word);
                 
-                // 在移动端隐藏单词列表面板，显示单词详情面板
-                if (window.innerWidth <= 768) {
-                    const wordListPanel = document.querySelector('.word-list-panel');
-                    const wordDetailPanel = document.querySelector('.word-detail-panel');
-                    const backBtn = document.getElementById('back-to-word-list');
+                // 检查是否是单词文本本身被点击
+                if (e.target.classList.contains('word-text')) {
+                    // 显示单词详情浮层
+                    showWordPopover(word);
+                } else {
+                    // 选择单词
+                    selectWord(word);
                     
-                    if (wordListPanel && wordDetailPanel && backBtn) {
-                        wordListPanel.classList.add('mobile-hidden');
-                        wordDetailPanel.classList.remove('mobile-hidden');
-                        backBtn.classList.remove('hidden');
+                    // 在移动端隐藏单词列表面板，显示单词详情面板
+                    if (window.innerWidth <= 768) {
+                        const wordListPanel = document.querySelector('.word-list-panel');
+                        const wordDetailPanel = document.querySelector('.word-detail-panel');
+                        const backBtn = document.getElementById('back-to-word-list');
+                        
+                        if (wordListPanel && wordDetailPanel && backBtn) {
+                            wordListPanel.classList.add('mobile-hidden');
+                            wordDetailPanel.classList.remove('mobile-hidden');
+                            backBtn.classList.remove('hidden');
+                        }
                     }
+                }
+            });
+            
+            // 添加键盘支持
+            wordItem.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    wordItem.click();
                 }
             });
             
@@ -222,14 +300,20 @@ function renderWordList() {
         if (reviewWords.length === 0) {
             const noReviewItem = document.createElement('div');
             noReviewItem.className = 'word-item';
+            noReviewItem.setAttribute('role', 'listitem');
             noReviewItem.innerHTML = '<div class="word-info"><span class="word-text">暂无需要复习的单词</span></div>';
             elements.wordListContainer.appendChild(noReviewItem);
         } else {
             reviewWords.forEach(wordObj => {
                 const wordItem = document.createElement('div');
                 wordItem.className = 'word-item';
+                wordItem.setAttribute('role', 'listitem');
+                wordItem.setAttribute('tabindex', '0');
                 if (wordObj.word === appState.currentWord) {
                     wordItem.classList.add('active');
+                    wordItem.setAttribute('aria-selected', 'true');
+                } else {
+                    wordItem.setAttribute('aria-selected', 'false');
                 }
                 
                 const frequency = appState.wordFrequency[wordObj.word] || 1;
@@ -243,13 +327,14 @@ function renderWordList() {
                                        proficiency === 'advanced' ? proficiencyLabels.advanced : '未标记';
                 
                 wordItem.setAttribute('data-proficiency', proficiency);
+                wordItem.setAttribute('aria-label', `${wordObj.word}，频率：${frequency}${isDue}，熟练度：${proficiencyLabel}`);
                 wordItem.innerHTML = `
                     <div class="word-info">
-                        <span class="word-text">${wordObj.word}</span>
-                        <span class="word-frequency">${frequency}${isDue}</span>
+                        <span class="word-text" role="button" tabindex="0" aria-label="点击查看${wordObj.word}的详细信息">${wordObj.word}</span>
+                        <span class="word-frequency" aria-label="出现频率">${frequency}${isDue}</span>
                     </div>
                     <div class="proficiency-container">
-                        <select class="proficiency-select" data-word="${wordObj.word}">
+                        <select class="proficiency-select" data-word="${wordObj.word}" aria-label="设置${wordObj.word}的熟练度">
                             <option value="unknown" ${proficiency === 'unknown' ? 'selected' : ''}>未标记</option>
                             <option value="beginner" ${proficiency === 'beginner' ? 'selected' : ''}>${proficiencyLabels.beginner}</option>
                             <option value="intermediate" ${proficiency === 'intermediate' ? 'selected' : ''}>${proficiencyLabels.intermediate}</option>
@@ -263,19 +348,35 @@ function renderWordList() {
                     if (e.target.classList.contains('proficiency-select')) {
                         return;
                     }
-                    selectWord(wordObj.word);
                     
-                    // 在移动端隐藏单词列表面板，显示单词详情面板
-                    if (window.innerWidth <= 768) {
-                        const wordListPanel = document.querySelector('.word-list-panel');
-                        const wordDetailPanel = document.querySelector('.word-detail-panel');
-                        const backBtn = document.getElementById('back-to-word-list');
+                    // 检查是否是单词文本本身被点击
+                    if (e.target.classList.contains('word-text')) {
+                        // 显示单词详情浮层
+                        showWordPopover(wordObj.word);
+                    } else {
+                        // 选择单词
+                        selectWord(wordObj.word);
                         
-                        if (wordListPanel && wordDetailPanel && backBtn) {
-                            wordListPanel.classList.add('mobile-hidden');
-                            wordDetailPanel.classList.remove('mobile-hidden');
-                            backBtn.classList.remove('hidden');
+                        // 在移动端隐藏单词列表面板，显示单词详情面板
+                        if (window.innerWidth <= 768) {
+                            const wordListPanel = document.querySelector('.word-list-panel');
+                            const wordDetailPanel = document.querySelector('.word-detail-panel');
+                            const backBtn = document.getElementById('back-to-word-list');
+                            
+                            if (wordListPanel && wordDetailPanel && backBtn) {
+                                wordListPanel.classList.add('mobile-hidden');
+                                wordDetailPanel.classList.remove('mobile-hidden');
+                                backBtn.classList.remove('hidden');
+                            }
                         }
+                    }
+                });
+                
+                // 添加键盘支持
+                wordItem.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        wordItem.click();
                     }
                 });
                 
@@ -289,6 +390,97 @@ function renderWordList() {
             });
         }
     }
+}
+
+// 显示单词详情浮层
+async function showWordPopover(word) {
+    const popover = document.getElementById('word-popover');
+    const popoverWord = document.getElementById('popover-word');
+    const popoverPhonetic = document.getElementById('popover-phonetic');
+    const popoverDefinition = document.getElementById('popover-definition');
+    const popoverExample = document.getElementById('popover-example');
+    const closePopover = document.getElementById('close-popover');
+    
+    if (!popover || !popoverWord || !popoverPhonetic || !popoverDefinition || !popoverExample || !closePopover) {
+        console.error('单词详情浮层元素未找到');
+        return;
+    }
+    
+    // 显示加载状态
+    popoverWord.textContent = word;
+    popoverPhonetic.textContent = '加载中...';
+    popoverDefinition.textContent = '';
+    popoverExample.textContent = '';
+    
+    // 显示浮层
+    popover.classList.remove('hidden');
+    
+    // 添加背景遮罩
+    let overlay = document.querySelector('.popover-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'popover-overlay';
+        document.body.appendChild(overlay);
+    }
+    overlay.classList.remove('hidden');
+    
+    try {
+        // 获取单词详细信息
+        const wordDetails = await getWordDetails(word);
+        
+        if (wordDetails) {
+            // 更新浮层内容
+            popoverWord.textContent = wordDetails.word;
+            popoverPhonetic.textContent = wordDetails.phonetic || '';
+            
+            // 渲染释义
+            let definitionHTML = '';
+            if (wordDetails.meanings && wordDetails.meanings.length > 0) {
+                wordDetails.meanings.forEach(meaning => {
+                    definitionHTML += `<p><strong>${meaning.partOfSpeech || '释义'}</strong>: ${meaning.definitions.join('; ')}</p>`;
+                });
+            } else {
+                definitionHTML = '<p>暂无释义信息。</p>';
+            }
+            popoverDefinition.innerHTML = definitionHTML;
+            
+            // 查找并显示例句
+            const example = findExampleSentence(word, appState.sentences);
+            popoverExample.innerHTML = example ? 
+                example.replace(new RegExp(`\\b${word}\\b`, 'ig'), `<strong>${word}</strong>`) :
+                `未在影片中找到包含"${word}"的清晰例句。`;
+        } else {
+            popoverWord.textContent = word;
+            popoverPhonetic.textContent = '';
+            popoverDefinition.innerHTML = '<p>未找到该单词的详细信息。</p>';
+            popoverExample.textContent = '';
+        }
+    } catch (error) {
+        console.error('获取单词详情时出错:', error);
+        popoverWord.textContent = word;
+        popoverPhonetic.textContent = '';
+        popoverDefinition.innerHTML = '<p>获取单词详情时出错，请检查控制台了解详情。</p>';
+        popoverExample.textContent = '';
+    }
+    
+    // 绑定关闭事件
+    const closePopoverHandler = () => {
+        popover.classList.add('hidden');
+        if (overlay) {
+            overlay.classList.add('hidden');
+        }
+        closePopover.removeEventListener('click', closePopoverHandler);
+        overlay.removeEventListener('click', closeOverlayHandler);
+    };
+    
+    const closeOverlayHandler = (e) => {
+        if (e.target === overlay) {
+            closePopoverHandler();
+        }
+    };
+    
+    closePopover.addEventListener('click', closePopoverHandler);
+    overlay.addEventListener('click', closeOverlayHandler);
 }
 
 // 获取需要复习的单词
@@ -383,6 +575,13 @@ function renderWordDetails() {
     elements.exampleSentenceElement.innerHTML = example 
         ? example.replace(new RegExp(`\\b${wordData.word}\\b`, 'ig'), `<strong>${wordData.word}</strong>`)
         : `未在影片中找到包含"${wordData.word}"的清晰例句。`;
+    
+    // 初始隐藏例句，只显示释义
+    elements.exampleSentenceElement.classList.add('hidden');
+    
+    // 更新进度指示器和翻面按钮
+    updateStudyProgress();
+    updateFlipButton();
 }
 
 // 选择单词
@@ -522,5 +721,5 @@ function setState(newState) {
     updateUI();
 }
 
-// 导出appState、setState函数、elements对象、initializeElements函数、selectWord函数、setWordProficiency函数、renderWordList函数、renderWordDetails函数、toggleStudyMode函数、toggleSettings函数、saveSettings函数和resetSettings函数
-export { appState, setState, elements, initializeElements, selectWord, setWordProficiency, renderWordList, renderWordDetails, toggleStudyMode, toggleSettings, saveSettings, resetSettings };
+// 导出appState、setState函数、elements对象、initializeElements函数、selectWord函数、setWordProficiency函数、renderWordList函数、renderWordDetails函数、toggleStudyMode函数、toggleSettings函数、saveSettings函数、resetSettings函数、updateStudyProgress函数和updateFlipButton函数
+export { appState, setState, elements, initializeElements, selectWord, setWordProficiency, renderWordList, renderWordDetails, toggleStudyMode, toggleSettings, saveSettings, resetSettings, updateStudyProgress, updateFlipButton };
