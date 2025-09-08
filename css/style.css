@@ -1592,3 +1592,61 @@ a:focus-visible {
 .hidden {
     display: none !important;
 }
+
+/* 圆形进度环样式 */
+.progress-ring {
+    position: relative;
+    width: 120px;
+  height: 120px;
+  margin: 0 auto;
+}
+
+.progress-ring-circle {
+  stroke: #ecf0f1;
+  stroke-width: 8;
+  fill: transparent;
+}
+
+.progress-ring-circle-progress {
+  stroke: #3498db;
+  stroke-width: 8;
+  fill: transparent;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.progress-ring-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+/* 上传模态框响应式优化 */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    padding: 20px;
+  }
+  
+  .form-group input[type="text"],
+  .form-group input[type="file"] {
+    padding: 10px;
+    font-size: 0.9em;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .submit-btn, .cancel-btn {
+    width: 100%;
+    padding: 12px;
+  }
+}

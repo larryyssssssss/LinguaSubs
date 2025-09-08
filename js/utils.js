@@ -1,31 +1,42 @@
 /**
- * 解析SRT字幕文件内容
+ * 解析SRT字幕文件
  * @param {string} srtContent - SRT文件内容
- * @returns {Array<string>} - 纯净对话句子数组
+ * @returns {Array<string>} 包含所有字幕文本的数组
  */
 function parseSRT(srtContent) {
-    // 移除所有HTML标签
-    const cleanContent = srtContent.replace(/<[^>]*>/g, '');
-    
-    // 按双换行符分割块
-    const blocks = cleanContent.split(/\n\s*\n/);
+    // 按空行分割块
+    const blocks = srtContent.trim().split(/\n\s*\n/);
     
     const sentences = [];
     
+    // 处理每个块
     blocks.forEach(block => {
-        // 移除时间戳和序号行
-        const lines = block.split('\n').filter(line => {
-            // 过滤掉空行、序号行和时间戳行
-            return line.trim() !== '' && 
-                   !/^\d+$/.test(line.trim()) && 
-                   !/^\d{2}:\d{2}:\d{2},\d{3}\s*-->\s*\d{2}:\d{2}:\d{2},\d{3}$/.test(line.trim());
-        });
+        // 按行分割
+        const lines = block.split('\n');
         
-        // 将剩余行合并为句子
-        if (lines.length > 0) {
-            const sentence = lines.join(' ').trim();
-            if (sentence) {
-                sentences.push(sentence);
+        // 至少需要3行（序号、时间、文本）
+        if (lines.length >= 3) {
+            // 合并所有文本行（从第3行开始）
+            let text = '';
+            for (let i = 2; i < lines.length; i++) {
+                text += lines[i] + ' ';
+            }
+            
+            // 清理文本
+            text = text.trim();
+            
+            // 移除HTML标签
+            text = text.replace(/<[^>]*>/g, '');
+            
+            // 移除音效标记（括号内的内容）
+            text = text.replace(/\([^)]*\)/g, '');
+            
+            // 移除音乐标记
+            text = text.replace(/\[.*?\]/g, '');
+            
+            // 如果清理后还有内容，添加到句子数组
+            if (text) {
+                sentences.push(text);
             }
         }
     });
@@ -34,35 +45,26 @@ function parseSRT(srtContent) {
 }
 
 /**
- * 从句子中提取核心词汇
+ * 从句子中提取核心单词
  * @param {Array<string>} sentences - 句子数组
- * @returns {Array<string>} - 核心词汇数组
+ * @returns {Array<string>} 核心单词数组
  */
 function extractWords(sentences) {
-    // 合并所有句子为一个字符串
+    // 将所有句子合并为一个字符串
     const allText = sentences.join(' ');
     
-    // 使用正则表达式提取所有英文单词
+    // 提取所有英文单词
     const words = allText.match(/[a-zA-Z]+/g) || [];
     
-    // 转为小写
+    // 转换为小写
     const lowerWords = words.map(word => word.toLowerCase());
     
-    // 定义停用词列表
+    // 定义停用词集合（常见的无意义词汇）
     const stopWords = new Set([
-        'a', 'an', 'the', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 
-        'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 
-        'would', 'could', 'should', 'may', 'might', 'must', 'can', 'shall', 
-        'to', 'of', 'in', 'on', 'at', 'by', 'for', 'with', 'about', 'into', 
-        'through', 'during', 'before', 'after', 'above', 'below', 'up', 'down', 
-        'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 
-        'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 
-        'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 
-        'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'just', 
-        'now', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 
-        'her', 'us', 'them', 'my', 'your', 'his', 'its', 'our', 'their', 
-        'myself', 'yourself', 'himself', 'herself', 'itself', 'ourselves', 
-        'yourselves', 'themselves',
+        'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 
+        'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must',
+        'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'its', 'our', 'their', 
+        'myself', 'yourself', 'himself', 'herself', 'itself', 'ourselves', 'yourselves', 'themselves',
         // 额外的常见停用词
         'am', 'get', 'got', 'let', 'go', 'went', 'come', 'came', 'see', 'saw',
         'take', 'took', 'make', 'made', 'know', 'knew', 'think', 'thought',

@@ -1,5 +1,5 @@
 // 在文件顶部添加导入语句
-import { getMovies, getMovieById, getUserProgress, saveUserProgress, saveWordProficiency, getMovieStats, uploadFile, createMovie, deleteMovie } from './dataService.js';
+import { getMovies, getMovieById, getUserProgress, saveUserProgress, saveWordProficiency, getMovieStats, uploadFile, createMovie, deleteMovie, getWordList, getUserMediaList, deleteUserMovie, updateUserMovie, uploadMovie } from './dataService.js';
 import { initRouter, navigateTo } from './router.js';
 import { prefetchWordDetails, getWordDetails, wordDetailsCache } from './api.js';
 import { showGlobalLoading, hideGlobalLoading } from './loadingManager.js';
@@ -486,26 +486,34 @@ async function renderUserLibrary() {
         return;
     }
     
-    userMediaItems.forEach(media => {
+    // 并行获取所有用户媒体的学习统计数据
+    const mediaStatsPromises = userMediaItems.map(media => {
+        return getMovieStats(media.id).catch(error => {
+            console.warn('获取媒体统计数据失败:', error);
+            return { totalWords: 0, learnedWords: 0 };
+        });
+    });
+    
+    // 等待所有统计数据获取完成
+    const mediaStats = await Promise.all(mediaStatsPromises);
+    
+    userMediaItems.forEach((media, index) => {
         const libraryItem = document.createElement('div');
         libraryItem.className = 'library-item';
         
-        // 计算统计数据
-        const totalWords = media.words ? media.words.length : 0;
-        // 从Supabase获取学习进度数据
-        const learnedWords = media.wordProficiency ? Object.keys(media.wordProficiency).length : 0;
-        const reviewWords = media.progressData ? Object.keys(media.progressData).length : 0;
+        // 获取对应媒体的学习统计数据
+        const stats = mediaStats[index];
         
         // 计算学习进度百分比
-        const progressPercent = totalWords > 0 ? Math.round((learnedWords / totalWords) * 100) : 0;
+        const progressPercent = stats.totalWords > 0 ? Math.round((stats.learnedWords / stats.totalWords) * 100) : 0;
         
         // 创建进度条HTML
-        const progressHtml = totalWords > 0 ? 
+        const progressHtml = stats.totalWords > 0 ? 
             `<div class="library-item-progress">
                 <div class="progress-bar">
                     <div class="progress-fill" style="width: ${progressPercent}%"></div>
                 </div>
-                <div class="progress-text">${learnedWords} / ${totalWords} 词已学习</div>
+                <div class="progress-text">${stats.learnedWords} / ${stats.totalWords} 词已学习</div>
             </div>` : '';
         
         libraryItem.innerHTML = `
@@ -513,12 +521,13 @@ async function renderUserLibrary() {
                 <div class="library-item-title">${media.title}</div>
                 ${progressHtml}
                 <div class="library-item-stats">
-                    <div class="library-item-stat">📚 词汇: ${totalWords}</div>
-                    <div class="library-item-stat">✅ 已学: ${learnedWords}</div>
-                    <div class="library-item-stat">🔁 复习: ${reviewWords}</div>
+                    <div class="library-item-stat">📚 词汇: ${stats.totalWords}</div>
+                    <div class="library-item-stat">✅ 已学: ${stats.learnedWords}</div>
+                    <div class="library-item-stat">🔁 复习: ${media.progressData ? Object.keys(media.progressData).length : 0}</div>
                 </div>
             </div>
             <div class="library-item-actions">
+                <button class="library-item-btn edit" data-id="${media.id}">编辑</button>
                 <button class="library-item-btn" data-id="${media.id}">学习</button>
                 <button class="library-item-btn delete" data-id="${media.id}">删除</button>
             </div>
@@ -527,18 +536,44 @@ async function renderUserLibrary() {
         userLibraryContainer.appendChild(libraryItem);
     });
     
-    // 绑定学习和删除按钮事件
+    // 绑定编辑、学习和删除按钮事件
     document.querySelectorAll('.library-item-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
             const mediaId = this.getAttribute('data-id');
             if (this.classList.contains('delete')) {
-                deleteUserMedia(mediaId).then(() => {
-                    renderUserLibrary();
-                }).catch(error => {
-                    console.error('删除媒体文件时出错:', error);
-                    alert('删除媒体文件时出错');
-                });
+                // 确认删除
+                if (confirm('确定要删除这个媒体文件吗？此操作不可撤销。')) {
+                    deleteUserMovie(mediaId).then(success => {
+                        if (success) {
+                            renderUserLibrary();
+                        } else {
+                            alert('删除媒体文件失败');
+                        }
+                    }).catch(error => {
+                        console.error('删除媒体文件时出错:', error);
+                        alert('删除媒体文件时出错');
+                    });
+                }
+            } else if (this.classList.contains('edit')) {
+                // 编辑功能
+                const media = userMediaItems.find(item => item.id === mediaId);
+                if (media) {
+                    // 这里可以实现编辑功能，例如弹出模态框让用户修改标题等信息
+                    const newTitle = prompt('请输入新的标题:', media.title);
+                    if (newTitle && newTitle !== media.title) {
+                        updateUserMovie(mediaId, { title: newTitle }).then(success => {
+                            if (success) {
+                                renderUserLibrary();
+                            } else {
+                                alert('更新媒体文件失败');
+                            }
+                        }).catch(error => {
+                            console.error('更新媒体文件时出错:', error);
+                            alert('更新媒体文件时出错');
+                        });
+                    }
+                }
             } else {
                 loadUserMediaForStudy(mediaId);
             }
@@ -673,28 +708,37 @@ async function renderMovieList() {
         ];
     }
     
+    // 并行获取所有电影的学习统计数据
+    const movieStatsPromises = movies.map(movie => {
+        // 只对Supabase中的电影获取统计数据
+        if (movie.id && !movie.id.startsWith('user_') && movie.id.includes('-')) {
+            return getMovieStats(movie.id).catch(error => {
+                console.warn('获取电影统计数据失败:', error);
+                return { totalWords: 0, learnedWords: 0 };
+            });
+        }
+        return Promise.resolve({ totalWords: 0, learnedWords: 0 });
+    });
+    
+    // 等待所有统计数据获取完成
+    const movieStats = await Promise.all(movieStatsPromises);
+    
     // 渲染电影卡片
-    for (const movie of movies) {
+    movies.forEach((movie, index) => {
         const movieCard = document.createElement('div');
         movieCard.className = 'movie-card';
         
-        // 获取电影的学习统计数据（仅对Supabase中的电影）
-        let progressHtml = '';
-        if (movie.id && !movie.id.startsWith('user_') && movie.id.includes('-')) { // 检查是否为UUID格式
-            try {
-                const stats = await getMovieStats(movie.id);
-                // 创建进度条HTML
-                progressHtml = stats.totalWords > 0 ? 
-                    `<div class="movie-progress">
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${(stats.learnedWords / stats.totalWords) * 100}%"></div>
-                        </div>
-                        <div class="progress-text">${stats.learnedWords} / ${stats.totalWords} 词已学习</div>
-                    </div>` : '';
-            } catch (error) {
-                console.warn('获取电影统计数据失败:', error);
-            }
-        }
+        // 获取对应电影的学习统计数据
+        const stats = movieStats[index];
+        
+        // 创建进度条HTML
+        const progressHtml = stats.totalWords > 0 ? 
+            `<div class="movie-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${(stats.learnedWords / stats.totalWords) * 100}%"></div>
+                </div>
+                <div class="progress-text">${stats.learnedWords} / ${stats.totalWords} 词已学习</div>
+            </div>` : '';
         
         // 确保posterUrl和srtPath正确
         const posterUrl = movie.cover_url || movie.poster_url || movie.posterUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI1MCIgZmlsbD0iI2NjYyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIGZpbGw9IiM2NjYiPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
@@ -718,7 +762,7 @@ async function renderMovieList() {
         });
         
         elements.movieListContainer.appendChild(movieCard);
-    }
+    });
 }
 
 // 改造：异步加载电影数据
@@ -738,41 +782,57 @@ async function loadMovieData(movie) {
     });
 
     try {
-        // 异步加载，不阻塞UI
-        // 确保使用正确的字段名获取字幕文件路径
-        const srtPath = movie.srtPath || movie.subtitle_url || movie.srt_path;
-        if (!srtPath) {
-            throw new Error('未找到字幕文件路径');
+        // 使用dataService中的getWordList函数获取词汇列表
+        const words = await getWordList(movie.id);
+        
+        // 如果没有获取到词汇列表，尝试从字幕文件获取
+        if (!words || words.length === 0) {
+            // 确保使用正确的字段名获取字幕文件路径
+            const srtPath = movie.srtPath || movie.subtitle_url || movie.srt_path;
+            if (!srtPath) {
+                throw new Error('未找到字幕文件路径');
+            }
+            
+            const response = await fetch(srtPath);
+            const srtContent = await response.text();
+            
+            const sentences = parseSRT(srtContent);
+            const words = extractWords(sentences);
+            
+            // 计算单词频率
+            const wordFrequency = calculateWordFrequency(sentences);
+            
+            setState({ 
+                allWords: words, 
+                sentences: sentences,
+                wordFrequency: wordFrequency,
+                studyMode: 'browse'
+            });
+        } else {
+            // 如果获取到了词汇列表，直接使用
+            setState({ 
+                allWords: words, 
+                sentences: [], // 词汇列表模式下不需要句子
+                wordFrequency: {}, // 词汇列表模式下不需要词频
+                studyMode: 'browse'
+            });
         }
-        
-        const response = await fetch(srtPath);
-        const srtContent = await response.text();
-        
-        const sentences = parseSRT(srtContent);
-        const words = extractWords(sentences);
-        
-        // 计算单词频率
-        const wordFrequency = calculateWordFrequency(sentences);
         
         // 从Supabase加载学习进度和熟练度数据
         const progressData = await getUserProgress(movie.id);
 
         setState({ 
-            allWords: words, 
-            sentences: sentences,
             progressData: progressData,
-            wordFrequency: wordFrequency,
-            wordProficiency: extractWordProficiencyFromProgress(progressData),
-            studyMode: 'browse'
+            wordProficiency: extractWordProficiencyFromProgress(progressData)
         });
         
         // 默认选择第一个单词
-        if (words.length > 0) {
-            selectWord(words[0]);
+        if (appState.allWords.length > 0) {
+            selectWord(appState.allWords[0]);
         }
         
         // 预取接下来的单词
-        prefetchWords(words, progressData);
+        prefetchWords(appState.allWords, appState.progressData);
     } catch (error) {
         console.error('加载电影数据时出错:', error);
         // 显示错误信息
@@ -1031,37 +1091,12 @@ async function handleUploadSubmit() {
     showGlobalLoading('正在上传文件...');
     
     try {
-        // 生成文件名（使用时间戳确保唯一性）
-        const timestamp = Date.now();
-        const subtitleFileName = `${timestamp}_${subtitleFile.name}`;
-        const coverFileName = coverFile ? `${timestamp}_${coverFile.name}` : null;
+        // 使用dataService中的uploadMovie函数上传电影
+        const userId = getUserId();
+        const movie = await uploadMovie(userId, title, subtitleFile, coverFile);
         
-        // 上传字幕文件
-        const subtitleUrl = await uploadFile(subtitleFile, supabaseConfig.storage.subtitlesBucket, subtitleFileName);
-        if (!subtitleUrl) {
-            throw new Error('字幕文件上传失败');
-        }
-        
-        // 上传封面图片（如果提供了）
-        let coverUrl = null;
-        if (coverFile) {
-            coverUrl = await uploadFile(coverFile, supabaseConfig.storage.coversBucket, coverFileName);
-            if (!coverUrl) {
-                console.warn('封面图片上传失败，将继续创建电影记录');
-            }
-        }
-        
-        // 创建电影记录
-        const movieData = {
-            title: title,
-            poster_url: coverUrl,
-            subtitle_url: subtitleUrl,
-            word_count: 0 // 初始词汇数为0，将在学习过程中更新
-        };
-        
-        const movie = await createMovie(movieData);
         if (!movie) {
-            throw new Error('电影记录创建失败');
+            throw new Error('电影上传失败');
         }
         
         // 隐藏模态框
@@ -1094,5 +1129,69 @@ function readFileAsText(file) {
     });
 }
 
+// 添加显示首页的函数
+function showHomePage() {
+    setState({ currentView: 'home' });
+}
+
+// 添加进入学习模式的函数
+async function enterStudyMode(movieId) {
+    // 显示全局加载指示器
+    showGlobalLoading('正在加载学习数据...');
+    
+    try {
+        // 从Supabase获取电影信息
+        const movie = await getMovieById(movieId);
+        if (!movie) {
+            console.warn('未找到指定的电影:', movieId);
+            navigateTo('/');
+            return;
+        }
+        
+        // 获取词汇列表
+        const words = await getWordList(movieId);
+        
+        // 获取用户学习进度
+        const progressData = await getUserProgress(movieId);
+        
+        // 更新状态
+        setState({ 
+            currentView: 'study',
+            currentMovie: {
+                id: movie.id,
+                title: movie.title,
+                posterUrl: movie.poster_url,
+                srtPath: movie.srt_path,
+                isUserMedia: !!movie.user_id
+            },
+            allWords: words,
+            progressData: progressData,
+            wordProficiency: extractWordProficiencyFromProgress(progressData),
+            currentWordDetails: null,
+            studyMode: 'browse'
+        });
+        
+        // 默认选择第一个单词
+        if (words && words.length > 0) {
+            selectWord(words[0]);
+        }
+        
+        // 预取接下来的单词
+        prefetchWords(words, progressData);
+    } catch (error) {
+        console.error('进入学习模式时出错:', error);
+        setState({ 
+            currentWordDetails: {
+                word: '加载失败',
+                phonetic: '',
+                meanings: [{ partOfSpeech: '错误', definitions: ['无法加载学习数据，请检查控制台了解详情。', `错误信息: ${error.message}`] }]
+            }
+        });
+    } finally {
+        // 隐藏全局加载指示器
+        hideGlobalLoading();
+    }
+}
+
 // 导出loadMovieData函数
-export { loadMovieData, loadUserMediaData };
+export { loadMovieData, loadUserMediaData, showHomePage, enterStudyMode };

@@ -2,11 +2,20 @@
  * LRU缓存类
  */
 class LRUCache {
+    /**
+     * 创建LRU缓存实例
+     * @param {number} maxSize - 缓存最大大小
+     */
     constructor(maxSize = 100) {
         this.maxSize = maxSize;
         this.cache = new Map();
     }
     
+    /**
+     * 获取缓存项
+     * @param {string} key - 缓存键
+     * @returns {*} 缓存值或null
+     */
     get(key) {
         const item = this.cache.get(key);
         if (item) {
@@ -18,6 +27,11 @@ class LRUCache {
         return null;
     }
     
+    /**
+     * 设置缓存项
+     * @param {string} key - 缓存键
+     * @param {*} value - 缓存值
+     */
     set(key, value) {
         // 如果已存在，先删除
         if (this.cache.has(key)) {
@@ -32,19 +46,35 @@ class LRUCache {
         this.cache.set(key, value);
     }
     
+    /**
+     * 检查缓存是否包含指定键
+     * @param {string} key - 缓存键
+     * @returns {boolean} 是否包含
+     */
     has(key) {
         return this.cache.has(key);
     }
     
+    /**
+     * 清空缓存
+     */
     clear() {
         this.cache.clear();
     }
     
+    /**
+     * 获取缓存大小
+     * @returns {number} 缓存大小
+     */
     size() {
         return this.cache.size;
     }
     
-    // 添加删除特定项的方法
+    /**
+     * 删除特定缓存项
+     * @param {string} key - 缓存键
+     * @returns {boolean} 是否删除成功
+     */
     delete(key) {
         return this.cache.delete(key);
     }

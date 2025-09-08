@@ -5,6 +5,7 @@
 
 import { supabase, isSupabaseAvailable } from './supabaseClient.js';
 import { supabaseConfig } from './supabaseConfig.js';
+import { parseSRT } from './utils.js';
 
 /**
  * 从Supabase获取所有电影列表
@@ -449,6 +450,184 @@ async function deleteUserMedia(mediaId) {
     }
 }
 
+/**
+ * 根据电影ID获取词汇列表
+ * @param {string} movieId 电影ID
+ * @returns {Promise<Array>} 词汇列表
+ */
+async function getWordList(movieId) {
+    if (!isSupabaseAvailable()) {
+        console.warn('Supabase不可用，无法获取词汇列表');
+        return [];
+    }
+
+    try {
+        // 首先尝试从数据库获取已存储的词汇列表
+        const { data: movieData, error: movieError } = await supabase
+            .from(supabaseConfig.tables.movies)
+            .select('word_list, srt_path')
+            .eq('id', movieId)
+            .single();
+
+        if (movieError) {
+            console.error('获取电影数据失败:', movieError);
+            return [];
+        }
+
+        // 如果数据库中已存在词汇列表，直接返回
+        if (movieData.word_list) {
+            return movieData.word_list;
+        }
+
+        // 如果数据库中没有词汇列表，但从电影数据中可以获取到字幕路径
+        if (movieData.srt_path) {
+            // 从Storage下载字幕文件
+            const response = await fetch(movieData.srt_path);
+            if (!response.ok) {
+                console.error('下载字幕文件失败:', response.status);
+                return [];
+            }
+
+            const srtContent = await response.text();
+            // 解析字幕文件生成词汇列表
+            const newWordList = parseSRT(srtContent);
+            
+            // 将新生成的词汇列表存回数据库
+            const { error: updateError } = await supabase
+                .from(supabaseConfig.tables.movies)
+                .update({ word_list: newWordList })
+                .eq('id', movieId);
+
+            if (updateError) {
+                console.error('更新电影词汇列表失败:', updateError);
+            }
+
+            return newWordList;
+        }
+
+        // 如果既没有词汇列表也没有字幕路径，返回空数组
+        return [];
+    } catch (error) {
+        console.error('获取词汇列表时发生异常:', error);
+        return [];
+    }
+}
+
+/**
+ * 上传电影文件（包括SRT和海报）
+ * @param {string} userId 用户ID
+ * @param {string} title 电影标题
+ * @param {File} srtFile SRT文件对象
+ * @param {File} posterFile 海报文件对象
+ * @returns {Promise<Object|null>} 上传结果或null
+ */
+async function uploadMovie(userId, title, srtFile, posterFile) {
+    if (!isSupabaseAvailable()) {
+        console.warn('Supabase不可用，无法上传电影');
+        return null;
+    }
+
+    try {
+        // 并行上传SRT文件和海报文件
+        const [srtUrl, posterUrl] = await Promise.all([
+            uploadFile(srtFile, supabaseConfig.buckets.subtitles, `${userId}_${Date.now()}_${srtFile.name}`),
+            uploadFile(posterFile, supabaseConfig.buckets.posters, `${userId}_${Date.now()}_${posterFile.name}`)
+        ]);
+
+        if (!srtUrl || !posterUrl) {
+            console.error('文件上传失败');
+            return null;
+        }
+
+        // 准备电影数据
+        const movieData = {
+            title: title,
+            srt_path: srtUrl,
+            poster_url: posterUrl,
+            user_id: userId,
+            created_at: new Date().toISOString()
+        };
+
+        // 插入电影数据到数据库
+        const { data, error } = await supabase
+            .from(supabaseConfig.tables.movies)
+            .insert([movieData])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('插入电影数据失败:', error);
+            return null;
+        }
+
+        return data || null;
+    } catch (error) {
+        console.error('上传电影时发生异常:', error);
+        return null;
+    }
+}
+
+/**
+ * 更新用户电影信息
+ * @param {string} movieId 电影ID
+ * @param {Object} updates 更新数据
+ * @returns {Promise<Object|null>} 更新后的电影数据或null
+ */
+async function updateUserMovie(movieId, updates) {
+    if (!isSupabaseAvailable()) {
+        console.warn('Supabase不可用，无法更新电影信息');
+        return null;
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from(supabaseConfig.tables.movies)
+            .update(updates)
+            .eq('id', movieId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('更新电影信息失败:', error);
+            return null;
+        }
+
+        return data || null;
+    } catch (error) {
+        console.error('更新电影信息时发生异常:', error);
+        return null;
+    }
+}
+
+/**
+ * 删除用户电影
+ * @param {string} movieId 电影ID
+ * @returns {Promise<boolean>} 删除是否成功
+ */
+async function deleteUserMovie(movieId) {
+    if (!isSupabaseAvailable()) {
+        console.warn('Supabase不可用，无法删除电影');
+        return false;
+    }
+
+    try {
+        const { error } = await supabase
+            .from(supabaseConfig.tables.movies)
+            .delete()
+            .eq('id', movieId);
+
+        if (error) {
+            console.error('删除电影失败:', error);
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error('删除电影时发生异常:', error);
+        return false;
+    }
+}
+
 // 导出所有函数
 export {
     getMovies,
@@ -460,5 +639,9 @@ export {
     getMovieStats,
     createMovie,
     getUserMediaList,
-    deleteMovie
+    deleteMovie,
+    getWordList,
+    uploadMovie,
+    updateUserMovie,
+    deleteUserMovie
 };
