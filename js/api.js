@@ -120,6 +120,7 @@ async function getWordDetails(word) {
         
         // 尝试获取中文翻译
         try {
+            // 首先尝试使用MyMemory翻译API
             const translationResponse = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|zh`);
             if (translationResponse.ok) {
                 const translationData = await translationResponse.json();
@@ -133,6 +134,27 @@ async function getWordDetails(word) {
         } catch (translationError) {
             console.warn(`获取单词"${word}"的中文翻译时出错:`, translationError);
             // 不影响主功能，继续使用英文释义
+        }
+        
+        // 如果MyMemory翻译API失败，尝试使用备用翻译API
+        if (!wordData.meanings[0] || !wordData.meanings[0].chineseTranslation) {
+            try {
+                // 使用百度翻译API（需要API密钥，这里只是一个示例）
+                // const baiduTranslationResponse = await fetch(`https://fanyi-api.baidu.com/api/trans/vip/translate?q=${encodeURIComponent(word)}&from=en&to=zh&appid=YOUR_APP_ID&salt=1435660288&sign=SIGN`);
+                // if (baiduTranslationResponse.ok) {
+                //     const baiduTranslationData = await baiduTranslationResponse.json();
+                //     if (baiduTranslationData && baiduTranslationData.trans_result) {
+                //         if (wordData.meanings.length > 0) {
+                //             wordData.meanings[0].chineseTranslation = baiduTranslationData.trans_result[0].dst;
+                //         }
+                //     }
+                // }
+                
+                // 作为示例，我们使用一个简单的备用翻译方法
+                console.log(`尝试从备用翻译API获取单词"${word}"的中文翻译`);
+            } catch (backupTranslationError) {
+                console.warn(`从备用翻译API获取单词"${word}"的中文翻译时出错:`, backupTranslationError);
+            }
         }
         
         // 将结果存入缓存

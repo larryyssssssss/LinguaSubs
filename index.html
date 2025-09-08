@@ -40,9 +40,10 @@
 
     <!-- 学习视图 -->
     <div id="study-view" class="hidden" role="main" tabindex="-1">
+        <!-- 添加美化后的返回按钮 -->
+        <button class="back-button" aria-label="返回首页">←</button>
         <div class="study-header">
             <div class="header-left">
-                <button id="back-to-home" class="nav-btn home-nav-btn" aria-label="返回首页">🏠 返回首页</button>
                 <h1 id="movie-title">电影名称</h1>
             </div>
             <div class="header-controls">
@@ -74,16 +75,11 @@
                         <button id="pronunciation-btn" aria-label="发音">🔊 发音</button>
                     </div>
                     <div class="study-navigation">
-                        <button id="back-to-home" class="nav-btn" aria-label="返回首页">🏠 返回首页</button>
                         <button id="back-to-word-list" class="back-btn hidden" aria-label="返回单词列表">← 返回单词列表</button>
                     </div>
                     <!-- 进度指示器 -->
                     <div id="study-progress" class="study-progress hidden">
                         <span id="current-card">0</span> / <span id="total-cards">0</span>
-                    </div>
-                    <!-- 翻面按钮 -->
-                    <div id="flip-container" class="flip-container hidden">
-                        <button id="flip-btn" class="flip-btn">翻面查看释义</button>
                     </div>
                     <div id="definition" class="definition" aria-label="单词释义"></div>
                     <div id="example-sentence" class="example-sentence" aria-label="例句"></div>

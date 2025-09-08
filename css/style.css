@@ -624,6 +624,30 @@ a:focus-visible {
     background: rgba(52, 152, 219, 0.3);
 }
 
+/* 美化后的返回按钮样式 */
+.back-button {
+    position: fixed;
+    top: 24px;
+    left: 24px;
+    width: 44px; /* 保证触控区域 */
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    color: #fff;
+    transition: background 0.2s ease;
+    z-index: 1000;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2em;
+}
+
+.back-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
 .nav-btn {
     padding: 8px 15px;
     border: none;
@@ -1559,7 +1583,7 @@ a:focus-visible {
 }
 
 /* 翻面按钮容器 */
-.flip-container {
+/* .flip-container {
     text-align: center;
     margin: 20px 0;
 }
@@ -1586,7 +1610,7 @@ a:focus-visible {
 
 .flip-btn:active {
     transform: translateY(0);
-}
+} */
 
 /* 隐藏类 */
 .hidden {

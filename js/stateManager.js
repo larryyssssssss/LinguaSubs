@@ -55,6 +55,7 @@ function initializeElements() {
         intermediateLabelInput: document.getElementById('intermediate-label'),
         advancedLabelInput: document.getElementById('advanced-label'),
         dictionaryAPISelect: document.getElementById('dictionary-api')
+        // 注意：返回按钮由main.js直接处理，不需要在这里引用
     };
 }
 
@@ -157,34 +158,6 @@ function updateStudyProgress() {
             progressElement.classList.remove('hidden');
         } else {
             progressElement.classList.add('hidden');
-        }
-    }
-}
-
-// 控制翻面按钮显示
-function updateFlipButton() {
-    const flipContainer = document.getElementById('flip-container');
-    const flipBtn = document.getElementById('flip-btn');
-    const definitionElement = document.getElementById('definition');
-    const exampleElement = document.getElementById('example-sentence');
-    
-    if (flipContainer && flipBtn && definitionElement && exampleElement) {
-        // 只在有单词详情时显示翻面按钮
-        if (appState.currentWordDetails) {
-            flipContainer.classList.remove('hidden');
-            
-            // 添加翻面按钮事件
-            flipBtn.onclick = function() {
-                // 切换释义和例句的显示状态
-                const isDefinitionVisible = !definitionElement.classList.contains('hidden');
-                definitionElement.classList.toggle('hidden', isDefinitionVisible);
-                exampleElement.classList.toggle('hidden', isDefinitionVisible);
-                
-                // 更新按钮文本
-                flipBtn.textContent = isDefinitionVisible ? '翻面查看单词' : '翻面查看释义';
-            };
-        } else {
-            flipContainer.classList.add('hidden');
         }
     }
 }
@@ -517,41 +490,50 @@ function renderWordDetails() {
     elements.pronunciationBtn.disabled = false;
     elements.pronunciationBtn.style.display = 'inline-block';
     
-    if (wordData.audio) {
-        elements.pronunciationBtn.title = "点击播放发音";
+    // 导入speakWord函数
+    import('./utils.js').then(({ speakWord }) => {
         elements.pronunciationBtn.onclick = () => {
-            try {
-                const audio = new Audio(wordData.audio);
-                audio.play().catch(error => {
-                    console.error('播放音频时出错:', error);
+            speakWord(wordData.word);
+        };
+    }).catch(error => {
+        console.error('导入speakWord函数时出错:', error);
+        // 回退到原来的实现
+        if (wordData.audio) {
+            elements.pronunciationBtn.title = "点击播放发音";
+            elements.pronunciationBtn.onclick = () => {
+                try {
+                    const audio = new Audio(wordData.audio);
+                    audio.play().catch(error => {
+                        console.error('播放音频时出错:', error);
+                        // 显示错误提示
+                        const originalText = elements.pronunciationBtn.textContent;
+                        elements.pronunciationBtn.textContent = "播放失败";
+                        setTimeout(() => {
+                            elements.pronunciationBtn.textContent = originalText;
+                        }, 2000);
+                    });
+                } catch (error) {
+                    console.error('创建音频对象时出错:', error);
                     // 显示错误提示
                     const originalText = elements.pronunciationBtn.textContent;
                     elements.pronunciationBtn.textContent = "播放失败";
                     setTimeout(() => {
                         elements.pronunciationBtn.textContent = originalText;
                     }, 2000);
-                });
-            } catch (error) {
-                console.error('创建音频对象时出错:', error);
-                // 显示错误提示
+                }
+            };
+        } else {
+            elements.pronunciationBtn.title = "该单词暂无发音";
+            elements.pronunciationBtn.onclick = () => {
+                // 即使没有音频，也提供用户反馈
                 const originalText = elements.pronunciationBtn.textContent;
-                elements.pronunciationBtn.textContent = "播放失败";
+                elements.pronunciationBtn.textContent = "无音频";
                 setTimeout(() => {
                     elements.pronunciationBtn.textContent = originalText;
-                }, 2000);
-            }
-        };
-    } else {
-        elements.pronunciationBtn.title = "该单词暂无发音";
-        elements.pronunciationBtn.onclick = () => {
-            // 即使没有音频，也提供用户反馈
-            const originalText = elements.pronunciationBtn.textContent;
-            elements.pronunciationBtn.textContent = "无音频";
-            setTimeout(() => {
-                elements.pronunciationBtn.textContent = originalText;
-            }, 1000);
-        };
-    }
+                }, 1000);
+            };
+        }
+    });
     
     // 渲染词性和释义（添加中文翻译）
     let definitionHTML = '';
@@ -576,12 +558,10 @@ function renderWordDetails() {
         ? example.replace(new RegExp(`\\b${wordData.word}\\b`, 'ig'), `<strong>${wordData.word}</strong>`)
         : `未在影片中找到包含"${wordData.word}"的清晰例句。`;
     
-    // 初始隐藏例句，只显示释义
-    elements.exampleSentenceElement.classList.add('hidden');
+    // 默认显示释义和例句，移除了隐藏例句的代码
     
-    // 更新进度指示器和翻面按钮
+    // 更新进度指示器
     updateStudyProgress();
-    updateFlipButton();
 }
 
 // 选择单词
@@ -649,8 +629,16 @@ function toggleStudyMode(mode) {
     
     // 如果切换到复习模式，自动选择第一个需要复习的单词
     if (mode === 'review') {
-        const reviewWords = getReviewWords();
+        let reviewWords = getReviewWords();
+        
+        // 随机化复习队列
         if (reviewWords.length > 0) {
+            // 使用Fisher-Yates洗牌算法打乱数组
+            for (let i = reviewWords.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [reviewWords[i], reviewWords[j]] = [reviewWords[j], reviewWords[i]];
+            }
+            
             selectWord(reviewWords[0].word);
         }
     }

@@ -139,6 +139,16 @@ document.addEventListener('DOMContentLoaded', function() {
         backToHomeBtn.addEventListener('keydown', handleButtonKeyDown);
     }
     
+    // 为新的美化返回按钮添加事件监听器
+    const backButton = document.querySelector('.back-button');
+    if (backButton) {
+        backButton.addEventListener('click', () => {
+            // 导航到首页
+            navigateTo('/');
+        });
+        backButton.addEventListener('keydown', handleButtonKeyDown);
+    }
+    
     // 绑定上传事件
     const uploadInput = document.getElementById('subtitle-upload');
     if (uploadInput) {

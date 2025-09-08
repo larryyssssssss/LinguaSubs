@@ -264,7 +264,7 @@ async function getMovieStats(movieId) {
         // 获取该电影的所有学习进度记录
         const { data, error } = await supabase
             .from(supabaseConfig.tables.userProgress)
-            .select('word, proficiency')
+            .select('word, proficiency, review_count')
             .eq('movie_id', movieId);
 
         if (error) {
@@ -274,8 +274,12 @@ async function getMovieStats(movieId) {
 
         // 计算总单词数和已学习单词数
         const totalWords = data.length;
-        // 注意：这里的proficiency字段可能在数据库中不存在，我们检查是否存在
-        const learnedWords = data.filter(item => item.proficiency !== undefined).length;
+        
+        // 已学习单词数：review_count大于0或者proficiency不为undefined的单词
+        const learnedWords = data.filter(item => 
+            (item.review_count && item.review_count > 0) || 
+            (item.proficiency !== undefined)
+        ).length;
 
         return { totalWords, learnedWords };
     } catch (error) {

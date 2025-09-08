@@ -86,5 +86,77 @@ function extractWords(sentences) {
     return coreWords;
 }
 
+// 语音加载状态
+let voices = [];
+let voicesLoaded = false;
+
+// 加载语音
+function loadVoices() {
+    voices = window.speechSynthesis.getVoices();
+    if (voices.length === 0) {
+        // 如果语音包还没加载好，等待加载完成
+        window.speechSynthesis.onvoiceschanged = () => {
+            voices = window.speechSynthesis.getVoices();
+            voicesLoaded = true;
+        };
+    } else {
+        voicesLoaded = true;
+    }
+}
+
+// 初始化时加载语音
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+    loadVoices();
+}
+
+/**
+ * 发音单词
+ * @param {string} word - 要发音的单词
+ */
+function speakWord(word) {
+    // 检查浏览器是否支持SpeechSynthesis API
+    if (!window.speechSynthesis) {
+        console.warn("浏览器不支持语音合成API");
+        return;
+    }
+    
+    // 检查语音是否已加载
+    if (!voicesLoaded) {
+        console.warn("语音引擎尚未加载完成，正在尝试重新加载...");
+        loadVoices(); // 尝试再次加载
+        
+        // 可以给用户一个 "语音引擎加载中..." 的提示
+        // 这里可以根据需要添加UI提示
+        
+        // 等待一段时间后重试
+        setTimeout(() => {
+            if (voicesLoaded) {
+                speakWord(word); // 重试
+            } else {
+                console.warn("语音引擎加载超时");
+            }
+        }, 1000);
+        
+        return;
+    }
+    
+    // 创建语音合成实例
+    const utterance = new SpeechSynthesisUtterance(word);
+    
+    // 查找英语语音
+    const englishVoice = voices.find(voice => voice.lang.startsWith('en-'));
+    if (englishVoice) {
+        utterance.voice = englishVoice;
+    }
+    
+    // 设置语音参数
+    utterance.rate = 1; // 语速
+    utterance.pitch = 1; // 音调
+    utterance.volume = 1; // 音量
+    
+    // 播放语音
+    window.speechSynthesis.speak(utterance);
+}
+
 // 导出函数
-export { parseSRT, extractWords };
+export { parseSRT, extractWords, speakWord };
